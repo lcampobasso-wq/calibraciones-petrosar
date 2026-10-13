@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calibración de Detectores — PETROSAR</title>
+<style id="page-style">@page{size:210mm 148mm;margin:0}</style>
+<style>
+:root{
+  --navy:#1e2d3e;--navy2:#192638;--amber:#e8a020;--bg:#f0f2f6;--card:#fff;
+  --border:#e2e8f0;--text:#1a202c;--muted:#718096;
+  --ok:#15803d;--ok-bg:#dcfce7;--warn:#b45309;--warn-bg:#fef3c7;--bad:#b91c1c;--bad-bg:#fee2e2;--info-bg:#e0e7ff;--info:#3730a3;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px}
+button,input,select,textarea{font:inherit}
+
+/* ===== HEADER ===== */
+.hd{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:14px 20px 0}
+.hd-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hd-top img{width:38px;height:38px;border-radius:9px;background:#fff;object-fit:contain}
+.hd-title{font-size:18px;font-weight:700;letter-spacing:.2px}
+.hd-sub{font-size:12px;opacity:.7}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:12px 0}
+.kpi{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:8px 12px}
+.kpi b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:11px;opacity:.75;text-transform:uppercase;letter-spacing:.5px}
+.kpi.warn b{color:#fcd34d}.kpi.bad b{color:#fca5a5}
+.tabs{display:flex;gap:2px;overflow-x:auto}
+.tab{background:none;border:0;color:rgba(255,255,255,.65);padding:9px 14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-weight:600}
+.tab.on{color:#fff;border-color:var(--amber)}
+.tab:hover{color:#fff}
+
+/* ===== LAYOUT ===== */
+main{padding:14px 20px 40px;max-width:1280px;margin:0 auto}
+.view{display:none}.view.on{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.card h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--navy);display:flex;align-items:center;gap:8px}
+.card h3 .sp{flex:1}
+.g{display:grid;gap:8px}
+.g6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+label.f{display:flex;flex-direction:column;gap:3px;min-width:0}
+label.f>span{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.in,select.in,textarea.in{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:#fff;color:var(--text);min-width:0}
+.in:focus{outline:2px solid var(--amber);outline-offset:-1px;border-color:var(--amber)}
+.hint{font-size:11.5px;color:var(--muted)}
+.btn{border:1px solid var(--border);background:#fff;color:var(--text);border-radius:7px;padding:7px 12px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:#cbd5e1;background:#f8fafc}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.pri:hover{background:#2a3f57}
+.btn.acc{background:var(--amber);border-color:var(--amber);color:#1a202c}
+.btn.acc:hover{background:#f0b13c}
+.btn.sm{padding:4px 8px;font-size:12px}
+.btn.ghost{border-color:transparent;background:none}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bar .sp{flex:1}
+
+/* tables */
+.tw{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+table.t th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:600;padding:6px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.t td{padding:4px 6px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+table.t td .in{padding:5px 6px}
+table.t tr:hover td{background:#fafbfc}
+.num{font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-bad{background:var(--bad-bg);color:var(--bad)}.b-info{background:var(--info-bg);color:var(--info)}
+.b-gray{background:#edf2f7;color:#4a5568}
+.mono{font-family:Consolas,'Cascadia Mono',monospace}
+
+/* result panel / preview */
+.done{border:2px solid var(--amber)}
+.prev-wrap{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px}
+.prev-box{background:#e5e9f0;border-radius:8px;padding:10px;overflow:hidden}
+.prev-box .cap{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;margin-bottom:6px}
+.prev-scale{transform-origin:top left}
+.prev-scale .page{box-shadow:0 2px 10px rgba(0,0,0,.15);background:#fff}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:9px 16px;border-radius:8px;font-weight:600;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow:auto;padding:30px 12px}
+.modal.on{display:flex}
+.modal .box{background:#fff;border-radius:12px;padding:14px;max-width:900px;width:100%}
+.sigprev{height:34px;max-width:120px;object-fit:contain;border:1px dashed var(--border);border-radius:4px;background:#fff}
+.empty{text-align:center;color:var(--muted);padding:26px}
+
+@media (max-width:900px){.g6,.g5{grid-template-columns:repeat(2,minmax(0,1fr))}.g4,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.row2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}main,.hd{padding-left:14px;padding-right:14px}}
+
+/* =========================================================
+   DOCUMENTOS IMPRIMIBLES (certificado A5 + etiqueta)
+   ========================================================= */
+.page{background:#fff;color:#111;overflow:hidden;position:relative;font-family:'Segoe UI',Arial,sans-serif}
+.page *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* --- Certificado A5 apaisado 210x148 --- */
+.cert-page{width:210mm;height:148mm}
+.cert-page.a4{width:297mm;height:210mm}
+.cert-page.a4 .cert{zoom:1.4142}
+.cert{width:210mm;height:148mm;padding:7mm 8mm 6mm;display:flex;flex-direction:column;gap:3.2mm;font-size:9pt}
+.c-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4mm;border-bottom:.7mm solid #1e2d3e;padding-bottom:2.2mm}
+.c-org{display:flex;align-items:center;gap:2.5mm}
+.c-org img{width:11mm;height:11mm;object-fit:contain}
+.c-org b{display:block;font-size:10pt;color:#1e2d3e;letter-spacing:.3px}
+.c-org span{font-size:6.8pt;color:#555}
+.c-title{text-align:center;font-size:14pt;font-weight:800;letter-spacing:1.6px;color:#1e2d3e;font-variant:small-caps}
+.c-nro{border:.35mm solid #1e2d3e;border-radius:1.5mm;padding:1mm 2.6mm;text-align:center;min-width:34mm}
+.c-nro small{display:block;font-size:6pt;color:#555;text-transform:uppercase;letter-spacing:.4px}
+.c-nro b{font-size:10pt;font-family:Consolas,monospace;color:#1e2d3e}
+.c-sec{font-size:7.4pt;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#1e2d3e;display:flex;align-items:center;gap:2mm;margin-bottom:-1.2mm}
+.c-sec::before{content:"";width:2.2mm;height:2.2mm;background:#e8a020;border-radius:.4mm}
+table.ct{width:100%;border-collapse:collapse;table-layout:fixed}
+table.ct th{background:#1e2d3e;color:#fff;font-size:6.8pt;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:1.4mm 1.4mm;text-align:center;border:.25mm solid #1e2d3e}
+table.ct td{border:.25mm solid #9aa5b4;padding:2mm 1.4mm;text-align:center;font-size:9.2pt}
+table.ct td.l{text-align:left}
+table.ct td.sn{font-family:Consolas,monospace;font-weight:700;font-size:10.5pt;background:#fdf3df}
+.res-ok{color:#15803d;font-weight:800}.res-bad{color:#b91c1c;font-weight:800}
+.c-foot{display:grid;grid-template-columns:1fr 1.25fr .9fr 1.2fr 1.3fr;border:.25mm solid #9aa5b4;margin-top:auto}
+.c-foot>div{padding:1.6mm 2mm;border-left:.25mm solid #9aa5b4;min-height:16mm;display:flex;flex-direction:column;justify-content:space-between}
+.c-foot>div:first-child{border-left:0}
+.c-foot small{font-size:6pt;text-transform:uppercase;letter-spacing:.4px;color:#555;font-weight:600}
+.c-foot b{font-size:10.5pt}
+.c-foot em{font-style:normal;font-size:6.8pt;color:#555}
+.c-foot .big{font-size:12pt;font-weight:800}
+.c-sig{align-items:center}
+.c-sig img{max-height:10mm;max-width:38mm;object-fit:contain}
+.c-sig .ln{border-top:.25mm solid #333;width:90%;margin-top:auto}
+.c-obs{font-size:7.4pt;color:#333}
+.c-bot{display:flex;align-items:center;gap:3mm;font-size:6.4pt;color:#666;border-top:.25mm solid #d0d6de;padding-top:1.4mm}
+.c-bot .st{font-weight:800;color:#1e2d3e;letter-spacing:1.2px;font-size:7pt}
+.c-bot .sp{flex:1}
+.c-bot .qr{width:13mm;height:13mm}
+.c-bot .qr svg{width:100%;height:100%;display:block}
+
+/* --- Etiqueta (blanco y negro, apta térmica) --- */
+.lbl-page{display:flex}
+.lbl{width:100%;height:100%;padding:1.2mm;display:flex;flex-direction:column;color:#000;font-family:'Segoe UI',Arial,sans-serif}
+.lbl-in{border:.35mm solid #000;border-radius:1.2mm;flex:1;display:flex;flex-direction:column;overflow:hidden}
+.lbl-band{background:#000;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:.5mm 1.4mm;font-weight:800;font-size:6.2pt;letter-spacing:.6px}
+.lbl-body{flex:1;display:grid;grid-template-columns:1fr auto;gap:1mm;padding:.8mm 1.2mm .6mm;min-height:0}
+.lbl-data{display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.lbl-r{display:flex;gap:1mm;align-items:baseline;white-space:nowrap;overflow:hidden;font-size:6.6pt;line-height:1.15}
+.lbl-r i{font-style:normal;color:#000;opacity:.75;min-width:9mm;font-size:5.6pt;text-transform:uppercase}
+.lbl-r b{font-weight:800}
+.lbl-r.id b{font-size:8.4pt}
+.lbl-r.nx b{font-size:7.8pt}
+.lbl-qr{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4mm}
+.lbl-qr svg{display:block}
+.lbl-qr small{font-size:4.6pt;font-family:Consolas,monospace}
+.lbl-ft{font-size:5pt;padding:0 1.4mm .5mm;display:flex;justify-content:space-between;white-space:nowrap;overflow:hidden}
+
+/* --- Etiqueta compacta 30x20 --- */
+.lbl.xs{padding:.6mm}
+.lbl.xs .lbl-in{border-width:.3mm;border-radius:.8mm}
+.lbl.xs .lbl-band{font-size:4.6pt;padding:.25mm .9mm;letter-spacing:.3px}
+.lbl.xs .lbl-body{padding:.4mm .7mm .2mm;gap:.6mm}
+.lbl.xs .lbl-r{font-size:5.4pt;line-height:1.05;gap:.6mm}
+.lbl.xs .lbl-r i{min-width:4.2mm;font-size:4pt;opacity:.8}
+.lbl.xs .lbl-r.id b{font-size:6.6pt}
+.lbl.xs .lbl-r.nx b{font-size:6pt}
+.lbl.xs .lbl-sn{display:flex;align-items:baseline;gap:.8mm;padding:.35mm .9mm 0;white-space:nowrap;overflow:hidden}
+.lbl.xs .lbl-sn i{font-style:normal;font-size:4pt;opacity:.8}
+.lbl.xs .lbl-sn b{font-size:7pt;font-weight:900;letter-spacing:.1px}
+.lbl.xs.noqr .lbl-sn b{font-size:8.4pt}
+.lbl.xs .lbl-r{font-size:6pt}
+.lbl.xs .lbl-r.nx b{font-size:6.6pt}
+.lbl.xs .lbl-ft{font-size:3.8pt;padding:0 .9mm .25mm}
+.lbl.xs.noqr .lbl-r{font-size:6.4pt}.lbl.xs.noqr .lbl-r.id b{font-size:8pt}.lbl.xs.noqr .lbl-r.nx b{font-size:7.4pt}.lbl.xs.noqr .lbl-r i{min-width:5.4mm;font-size:4.6pt}
+
+/* vencimientos */
+.chips{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.chip{border:1px solid var(--border);border-radius:9px;padding:8px 12px;background:#fff;cursor:pointer;text-align:left}
+.chip b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.chip span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+.chip.on{outline:2px solid var(--amber)}
+.chip.c-bad b{color:var(--bad)}.chip.c-warn b{color:var(--warn)}.chip.c-pv b{color:#a16207}.chip.c-ok b{color:var(--ok)}
+.dias{font-weight:800;font-variant-numeric:tabular-nums}
+.d-bad{color:var(--bad)}.d-warn{color:var(--warn)}.d-ok{color:var(--ok)}
+.conn{display:flex;gap:8px;align-items:flex-start;padding:6px 10px;border-radius:8px;font-size:12px;margin-top:10px}
+.conn.off{background:var(--warn-bg);color:#78350f}.conn.on{background:var(--ok-bg);color:#14532d}
+tr.hl td{background:#fff7e6}
+.av-grid{display:grid;grid-template-columns:minmax(0,1.3fr) 110px minmax(0,1.6fr);gap:12px;align-items:start}
+@media (max-width:900px){.av-grid{grid-template-columns:1fr}}
+@media (max-width:900px){.chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* visor público (QR) */
+body.viewer-mode>header,body.viewer-mode>main{display:none}
+#viewer{padding:16px;max-width:860px;margin:0 auto}
+.vw-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px}
+.vw-head{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.vw-head img{width:40px;height:40px;object-fit:contain}
+.vw-head b{display:block;font-size:16px;color:var(--navy)}.vw-head span{font-size:12px;color:var(--muted)}
+.vw-st{border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;margin-bottom:12px}
+.vw-st b{font-size:20px;letter-spacing:.5px}.vw-st span{font-size:13px}
+.vw-ok{background:var(--ok-bg);color:var(--ok)}.vw-warn{background:var(--warn-bg);color:var(--warn)}.vw-bad{background:var(--bad-bg);color:var(--bad)}.vw-gray{background:#edf2f7;color:#4a5568}
+.vw-dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0;font-size:14px}
+.vw-dl dt{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;font-weight:600;padding-top:2px}
+.vw-dl dd{margin:0}
+.vw-doc{background:#e5e9f0;border-radius:8px;padding:8px;overflow:hidden}
+.vw-doc .page{box-shadow:0 2px 10px rgba(0,0,0,.15)}
+
+/* ciclo de vida */
+.cyc{display:inline-flex;gap:2px;vertical-align:middle;margin-right:5px}
+.cyc i{width:7px;height:7px;border-radius:50%;background:#e2e8f0;display:block}
+.cyc i.f{background:var(--navy)}.cyc.last i.f{background:var(--bad)}
+.cyc-t{font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.chip.c-rep b{color:#7c3aed}
+.alert{display:flex;gap:10px;align-items:flex-start;border-radius:8px;padding:10px 12px;margin:10px 0 0;font-size:12.5px}
+.alert.rep{background:#f3e8ff;color:#581c87;border:1px solid #e9d5ff}
+.alert.err{background:var(--bad-bg);color:#7f1d1d;border:1px solid #fecaca}
+.alert b.t{display:block;font-size:13px}
+.c-last{background:#b91c1c;color:#fff;font-weight:800;font-size:8pt;letter-spacing:.6px;padding:1.4mm 3mm;border-radius:1mm;text-align:center}
+.c-cyc{display:inline-block;border:.3mm solid #1e2d3e;border-radius:1mm;padding:0 1.6mm;font-weight:700;color:#1e2d3e;font-size:8pt}
+.lbl-band.last{background:#000}
+.lbl-ft .lastt{font-weight:900}
+.cyc-sel{width:62px}
+.cyc-sel.last{border-color:var(--bad);color:var(--bad);font-weight:700}
+.eq-msg{font-size:11px;font-weight:700;white-space:nowrap}
+.eq-msg.last{color:var(--bad)}.eq-msg.over{color:#fff;background:var(--bad);padding:1px 6px;border-radius:4px}
+
+/* asignación / importación */
+.who b{display:block;font-weight:600;white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.who small{color:var(--muted);font-size:11px}
+.base-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:4px;background:#e0e7ff;color:#3730a3;letter-spacing:.3px}
+.alert.need{background:#fff7e6;color:#78350f;border:1px solid #fde68a}
+.asg-hist{font-size:12px;margin:6px 0 0;padding:0;list-style:none}
+.asg-hist li{padding:3px 0;border-bottom:1px dashed var(--border)}
+.imp-sum{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
+.wtxt{color:var(--warn);font-size:11px;font-weight:600}
+
+#print-area{display:none}
+#pdf-stage{position:fixed;left:-10000px;top:0}
+@media print{
+  body{background:#fff}
+  body>*:not(#print-area){display:none!important}
+  #print-area{display:block}
+  .page{break-after:page;page-break-after:always}
+  .page:last-child{break-after:auto;page-break-after:auto}
+}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-top">
+    <img src="data:image/jpeg;base64,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" alt="PETROSAR">
+    <div>
+      <div class="hd-title">Calibración de Detectores</div>
+      <div class="hd-sub">Servicio Técnico · Certificados y etiquetas de equipos monogas</div>
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><b id="k-certs">0</b><span>Certificados emitidos</span></div>
+    <div class="kpi"><b id="k-eq">0</b><span>Equipos en servicio</span></div>
+    <div class="kpi warn"><b id="k-pv">0</b><span>Vencen en 30 días</span></div>
+    <div class="kpi bad"><b id="k-v">0</b><span>Calibración vencida</span></div>
+    <div class="kpi warn"><b id="k-rep">0</b><span>A reponer (última calib.)</span></div>
+  </div>
+  <nav class="tabs">
+    <button class="tab on" data-v="nueva">Nueva calibración</button>
+    <button class="tab" data-v="venc">Vencimientos <span class="badge b-bad" id="tab-venc" hidden></span></button>
+    <button class="tab" data-v="registro">Registro de certificados</button>
+    <button class="tab" data-v="config">Configuración</button>
+  </nav>
+</header>
+
+<main>
+<!-- ================= NUEVA CALIBRACIÓN ================= -->
+<section class="view on" id="v-nueva">
+  <div class="card">
+    <h3>Información del instrumento <span class="sp"></span><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">Datos comunes a todo el lote</span></h3>
+    <div class="g g5">
+      <label class="f"><span>Cliente</span><input class="in" id="f-cliente"></label>
+      <label class="f"><span>Equipo</span><input class="in" id="f-equipo" list="dl-equipo"></label>
+      <label class="f"><span>Marca</span><input class="in" id="f-marca" list="dl-marca"></label>
+      <label class="f"><span>Modelo</span><input class="in" id="f-modelo" list="dl-modelo"></label>
+      <label class="f"><span>Fecha de calibración</span><input class="in" type="date" id="f-fecha"></label>
+    </div>
+    <div class="g g5" style="margin-top:8px">
+      <label class="f"><span>Calibrado por</span><select class="in" id="f-tecnico"></select></label>
+      <label class="f"><span>Próxima calibración (días)</span><input class="in num" type="number" min="1" id="f-dias"></label>
+      <label class="f"><span>Vence</span><input class="in num" id="f-vence" disabled></label>
+      <div></div><div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Sensores · seteo de alarmas y gas patrón <span class="sp"></span><button class="btn sm" id="add-sensor">+ Sensor</button></h3>
+    <div class="tw"><table class="t" id="t-sens">
+      <thead><tr><th>Sensor</th><th>Alarma 1</th><th>Alarma 2</th><th>TWA</th><th>STEL</th><th>Conc. del gas</th><th>Cilindro N°</th><th>Proveedor</th><th>Tolerancia</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h3>Equipos calibrados <span class="badge b-info" id="eq-count">0</span><span class="sp"></span>
+      <button class="btn sm" id="paste-toggle">Pegar lista de N° de serie</button>
+      <button class="btn sm" id="add-eq">+ Equipo</button></h3>
+    <div id="paste-box" hidden style="margin-bottom:10px">
+      <textarea class="in mono" id="paste-ta" rows="4" placeholder="Un N° de serie por línea. Opcional: N° de serie ; persona ; base   (ej:  BA26170064 ; NEUBAUER Rene ; AG)"></textarea>
+      <div class="bar" style="margin-top:6px"><button class="btn sm pri" id="paste-add">Agregar a la lista</button><span class="hint">Se crea un certificado y una etiqueta por cada equipo.</span></div>
+    </div>
+    <div class="tw"><table class="t" id="t-eq">
+      <thead><tr><th style="width:28px">#</th><th>N° de serie *</th><th>Asignado a</th><th>Base</th><th title="Número de calibración de este equipo">Calib. N°</th><th>Lectura de cero</th><th>Resultado</th><th>Observaciones</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="bar" style="margin-top:12px">
+      <span class="hint" id="gen-hint"></span><span class="sp"></span>
+      <button class="btn" id="btn-clear">Limpiar equipos</button>
+      <button class="btn acc" id="btn-gen">Generar certificados y etiquetas</button>
+    </div>
+  </div>
+
+  <div class="card done" id="lote-panel" hidden>
+    <h3>Lote generado <span class="badge b-ok" id="lote-n"></span><span class="sp"></span></h3>
+    <div class="bar">
+      <button class="btn pri" id="lote-cert">Imprimir certificados</button>
+      <button class="btn pri" id="lote-lbl">Imprimir etiquetas</button>
+      <button class="btn" id="lote-pdf">Descargar PDFs (uno por equipo)</button>
+      <span class="sp"></span>
+      <span class="hint">Para PDF único: Imprimir → destino «Guardar como PDF».</span>
+    </div>
+    <div id="lote-alert"></div>
+    <div class="prev-wrap" id="lote-prev"></div>
+  </div>
+</section>
+
+<!-- ================= REGISTRO ================= -->
+<section class="view" id="v-registro">
+  <div class="card">
+    <div class="bar" style="margin-bottom:10px">
+      <input class="in" id="r-q" placeholder="Buscar N° de serie, ID, N° de certificado, modelo…" style="max-width:340px">
+      <select class="in" id="r-est" style="max-width:190px">
+        <option value="">Todos los estados</option>
+        <option value="vig">Vigentes</option><option value="pv">Vencen en 30 días</option>
+        <option value="ven">Vencidos</option><option value="rep">Reemplazados</option><option value="baja">Dados de baja</option>
+      </select>
+      <span class="sp"></span>
+      <span class="hint" id="r-sel">0 seleccionados</span>
+      <button class="btn sm pri" id="r-cert" disabled>Certificados</button>
+      <button class="btn sm pri" id="r-lbl" disabled>Etiquetas</button>
+      <button class="btn sm" id="r-pdf" disabled>PDFs</button>
+    </div>
+    <div class="tw"><table class="t" id="t-reg">
+      <thead><tr><th style="width:28px"><input type="checkbox" id="r-all"></th><th>N° certificado</th><th>N° de serie</th><th>Asignado (al emitir)</th><th>Calib.</th><th>Equipo / Modelo</th><th>Sensor</th><th>Calibración</th><th>Próxima</th><th>Resultado</th><th>Estado</th><th>Técnico</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ================= VENCIMIENTOS ================= -->
+<section class="view" id="v-venc">
+  <div class="chips" id="v-chips">
+    <button class="chip c-bad" data-f="ven"><b id="vc-ven">0</b><span>Vencidos</span></button>
+    <button class="chip c-warn" data-f="av"><b id="vc-av">0</b><span id="vc-av-l">Vencen en 5 días</span></button>
+    <button class="chip c-pv" data-f="30"><b id="vc-30">0</b><span>Vencen en 30 días</span></button>
+    <button class="chip c-rep" data-f="rep"><b id="vc-rep">0</b><span>A reponer</span></button>
+    <button class="chip c-ok" data-f=""><b id="vc-all">0</b><span>Equipos en control</span></button>
+  </div>
+  <div class="card">
+    <h3>Avisos por mail <span class="sp"></span><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">Control diario 08:00 · vencimientos y reposición de equipos</span></h3>
+    <div class="av-grid">
+      <label class="f"><span>Destinatarios (separados por coma)</span><textarea class="in" id="a-dest" rows="2" placeholder="pmorales@petrosar.com"></textarea></label>
+      <label class="f"><span>Anticipación (días)</span><input class="in num" type="number" min="1" max="60" id="a-dias"></label>
+      <div class="f" style="min-width:0"><span style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">Próximo mail</span><div id="a-next" class="hint"></div></div>
+    </div>
+    <div class="conn" id="a-conn"></div>
+  </div>
+  <div class="card">
+    <h3>Control de vencimientos por equipo <span class="sp"></span>
+      <select class="in" id="v-base" style="max-width:130px;text-transform:none;letter-spacing:0;font-weight:400"><option value="">Todas las bases</option></select>
+      <input class="in" id="v-q" placeholder="Buscar S/N, persona…" style="max-width:200px;text-transform:none;letter-spacing:0;font-weight:400">
+      <button class="btn sm" id="v-imp" style="text-transform:none;letter-spacing:0">Importar inventario</button></h3>
+    <div id="v-need"></div>
+    <div class="tw"><table class="t" id="t-venc">
+      <thead><tr><th>N° de serie</th><th>Asignado a</th><th>Base</th><th>Vida útil</th><th>Calibrado</th><th>Vence</th><th>Días</th><th>Estado</th><th>Aviso por mail</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="bar" style="margin-top:8px"><p class="hint" style="margin:0">Último certificado de cada equipo. Al recalibrar, el vencimiento se actualiza solo. Con la última calibración vencida, el equipo se da de baja.</p><span class="sp"></span>
+      <label class="hint" style="display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="v-bajas"> Mostrar dados de baja</label></div>
+  </div>
+</section>
+
+<!-- ================= CONFIGURACIÓN ================= -->
+<section class="view" id="v-config">
+  <div class="row2">
+    <div class="card">
+      <h3>Formato de impresión</h3>
+      <div class="g g2" style="grid-template-columns:1fr 1fr">
+        <label class="f"><span>Certificado</span><select class="in" id="c-cert">
+          <option value="A4">A4 apaisado · 297 × 210 mm</option>
+          <option value="A5">A5 apaisado · 210 × 148 mm</option></select></label>
+        <label class="f"><span>Etiqueta</span><select class="in" id="c-lbl">
+          <option value="30x20">30 × 20 mm</option>
+          <option value="50x30">50 × 30 mm</option>
+          <option value="62x29">62 × 29 mm (Brother DK-11209)</option>
+          <option value="60x40">60 × 40 mm</option>
+          <option value="50x25">50 × 25 mm</option></select></label>
+      </div>
+      <label class="bar" style="margin-top:8px;gap:6px;cursor:pointer"><input type="checkbox" id="c-qr"> <span>Incluir código QR en la etiqueta</span></label>
+      <p class="hint">En el diálogo de impresión elegí el mismo tamaño de papel y márgenes «Ninguno». Para la etiqueta, configurá en el driver de la impresora el tamaño exacto del rótulo.</p>
+      <h3 style="margin-top:14px">Emisor del certificado</h3>
+      <div class="g" style="grid-template-columns:1fr 1fr">
+        <label class="f"><span>Empresa</span><input class="in" id="c-emp"></label>
+        <label class="f"><span>Sector</span><input class="in" id="c-sec"></label>
+        <label class="f"><span>Prefijo N° certificado</span><input class="in mono" id="c-pre"></label>
+        <label class="f"><span>Próximo N° (año actual)</span><input class="in num" type="number" min="1" id="c-seq"></label>
+        <label class="f"><span>Calibraciones máximas por equipo</span><input class="in num" type="number" min="1" max="20" id="c-max"></label>
+        <div></div>
+        <label class="f" style="grid-column:1/-1"><span>URL pública de la app (destino del QR)</span><input class="in mono" id="c-url"></label>
+      </div>
+      <p class="hint">El QR del certificado y de la etiqueta abre esta dirección con el certificado del equipo. Dejalo vacío para usar la dirección donde está publicada la app.</p>
+    </div>
+    <div class="card">
+      <h3>Técnicos y firmas <span class="sp"></span><button class="btn sm" id="c-addtec">+ Técnico</button></h3>
+      <table class="t" id="t-tec"><thead><tr><th>Nombre</th><th>Firma (imagen PNG/JPG)</th><th></th></tr></thead><tbody></tbody></table>
+      <p class="hint">La firma escaneada se imprime en el certificado. Si no hay imagen, queda la línea para firmar a mano.</p>
+      <h3 style="margin-top:14px">Respaldo de datos</h3>
+      <div class="bar">
+        <button class="btn sm" id="c-exp">Exportar respaldo (.json)</button>
+        <label class="btn sm">Importar respaldo<input type="file" id="c-imp" accept=".json" hidden></label>
+        <button class="btn sm" id="c-csv">Exportar registro (.csv)</button>
+      </div>
+      <p class="hint">Los datos se guardan en este navegador. Exportá un respaldo periódicamente.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="modal" id="modal"><div class="box">
+  <div class="bar" style="margin-bottom:10px"><b id="m-title"></b><span class="sp"></span>
+    <button class="btn sm pri" id="m-cert">Imprimir certificado</button>
+    <button class="btn sm pri" id="m-lbl">Imprimir etiqueta</button>
+    <button class="btn sm" id="m-pdf">PDF</button>
+    <button class="btn sm" id="m-recal">Recalibrar</button>
+    <button class="btn sm ghost" id="m-close">✕</button></div>
+  <div class="card" id="m-asg" style="margin:0 0 10px;background:#fafbfc"></div>
+  <div class="prev-wrap" id="m-prev"></div>
+</div></div>
+
+<div class="modal" id="imp-modal"><div class="box" style="max-width:1100px">
+  <div class="bar" style="margin-bottom:8px"><b>Importar inventario de equipos</b><span class="sp"></span><button class="btn sm ghost" id="imp-close">✕</button></div>
+  <p class="hint" style="margin:0 0 6px">Copiá las filas desde Excel (con o sin encabezado) y pegalas acá. Columnas esperadas: <b>empresa · persona a cargo · marca · N° de serie · fecha calibración · fecha vencimiento · estado · base</b>.</p>
+  <textarea class="in mono" id="imp-ta" rows="5" placeholder="PETROSAR S.A	NEUBAUER Rene	ION SCIENCE	BA26170064	25/06/2026	25-12-26	OK	AG"></textarea>
+  <div class="bar" style="margin-top:8px">
+    <button class="btn pri sm" id="imp-parse">Revisar datos</button>
+    <label class="hint" style="display:flex;gap:5px;align-items:center"><input type="checkbox" id="imp-ba" checked> Agregar «BA» a series de 8 dígitos</label>
+    <label class="hint" style="display:flex;gap:6px;align-items:center">Calibraciones ya hechas (todos): <select class="in" id="imp-cyc" style="width:70px"></select></label>
+  </div>
+  <div id="imp-prev"></div>
+</div></div>
+
+<datalist id="dl-equipo"><option>DETECTOR MONOGAS H2S</option><option>DETECTOR MONOGAS CO</option><option>DETECTOR MONOGAS O2</option><option>DETECTOR MULTIGAS</option></datalist>
+<datalist id="dl-marca"><option>ION SCIENCE</option><option>HONEYWELL</option><option>DRÄGER</option><option>MSA</option><option>INDUSTRIAL SCIENTIFIC</option><option>BW TECHNOLOGIES</option></datalist>
+<datalist id="dl-modelo"><option>ARA 100</option></datalist>
+<datalist id="dl-sensor"><option>H2S (ppm)</option><option>CO (ppm)</option><option>O2 (%vol)</option><option>LEL (%LIE)</option><option>SO2 (ppm)</option><option>NO2 (ppm)</option></datalist>
+<datalist id="dl-series"></datalist>
+<datalist id="dl-personas"></datalist>
+<datalist id="dl-bases"></datalist>
+<datalist id="dl-prov"><option>GASCO</option></datalist>
+
+<div class="toast" id="toast"></div>
+<div id="viewer" hidden></div>
+<div id="print-area"></div>
+<div id="pdf-stage"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* =========================================================
+   CONEXIÓN SUPABASE — completar al publicar.
+   Sin estos datos la app funciona en MODO LOCAL (solo este navegador, sin mails).
+   ========================================================= */
+const SUPA_URL = 'https://atnnhefwyfjhwcudtlbe.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0bm5oZWZ3eWZqaHdjdWR0bGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1OTg5NDIsImV4cCI6MjA4NTE3NDk0Mn0.yGvsttKLujVlpINgPUuGlZe5EQ3int4NMy7BI47UqJE';
+const REMOTE = !!(SUPA_URL && SUPA_KEY);
+
+const LOGO = document.querySelector('.hd-top img').src;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const KEY = 'petrosar_calibraciones_v1';
+const LBL = {'30x20':[30,20],'50x30':[50,30],'62x29':[62,29],'60x40':[60,40],'50x25':[50,25]};
+const DEF_URL = 'https://calibraciones-petrosar.vercel.app/';
+
+/* ---------- datos ---------- */
+const DEF = {
+  certs: [], seq: {}, asig: [],
+  cfg: { v:2, certSize:'A4', lblSize:'30x20', lblQR:true, baseUrl:'', empresa:'PETROSAR S.A.', sector:'Servicio Técnico', prefijo:'CAL',
+         tecnicos:[{nombre:'PABLO MORALES', firma:''}], avisos:{dest:'pmorales@petrosar.com', dias:5}, maxCal:4, bases:['AG','CD','RESERO','VH'] },
+  last: { cliente:'PETROSAR', equipo:'DETECTOR MONOGAS H2S', marca:'ION SCIENCE', modelo:'ARA 100', dias:180, tecnico:'PABLO MORALES',
+          sensores:[{sensor:'H2S (ppm)',a1:'10',a2:'15',twa:'10',stel:'15',conc:'25 ppm',cil:'',prov:'GASCO',tol:'±5 ppm'}] }
+};
+let db;
+function normalize(d){
+  d = Object.assign(structuredClone(DEF), d||{});
+  d.cfg = Object.assign(structuredClone(DEF.cfg), d.cfg||{});
+  d.cfg.avisos = Object.assign(structuredClone(DEF.cfg.avisos), d.cfg.avisos||{});
+  if(!d.cfg.avisos.dest) d.cfg.avisos.dest = DEF.cfg.avisos.dest;
+  if((d.cfg.v||1) < 2){ d.cfg.certSize='A4'; d.cfg.lblSize='30x20'; d.cfg.lblQR=true; d.cfg.v=2; }
+  d.certs.forEach(c=>{ if(!c.tok) c.tok = token(); });
+  if(!Array.isArray(d.asig)) d.asig = [];
+  // ciclo: si falta, se numera por orden de fecha dentro de cada serie
+  const bySer = {}; [...d.certs].sort((a,b)=>a.fecha.localeCompare(b.fecha)||a.ts-b.ts).forEach(c=>{ const k=c.serie.toUpperCase(); bySer[k]=(bySer[k]||0)+1; if(!c.ciclo) c.ciclo=bySer[k]; });
+  return d;
+}
+function loadLocal(){ let r=null; try{ r = JSON.parse(localStorage.getItem(KEY)); }catch(e){} db = normalize(r); }
+function saveLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){ toast('No se pudo guardar en el navegador'); } }
+
+/* --- Supabase REST (fetch directo) --- */
+async function sb(path, opt={}){
+  const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, {...opt, headers:{apikey:SUPA_KEY, Authorization:`Bearer ${SUPA_KEY}`, 'Content-Type':'application/json',
+    Prefer:'resolution=merge-duplicates,return=minimal', ...(opt.headers||{})}});
+  if(!r.ok) throw new Error(await r.text());
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+const rowOf = c => ({id:c.id, token:c.tok, nro:c.nro, serie:c.serie, id_equipo:c.idEq||null, modelo:c.modelo, fecha:c.fecha, proxima:c.proxima,
+  resultado:c.resultado, tecnico:c.tecnico, ciclo:c.ciclo||1, baja:c.baja||null, data:Object.fromEntries(Object.entries(c).filter(([k])=>k!=='aviso'&&k!=='avisoRep'))});
+const fromRow = r => ({...r.data, tok:r.token, aviso:r.aviso_enviado||'', avisoRep:r.aviso_reposicion||''});
+async function loadRemote(){
+  const [rows, cfg, asg] = await Promise.all([ sb('calib_certificados?select=token,data,aviso_enviado,aviso_reposicion&order=fecha.asc'), sb('calib_config?id=eq.cfg&select=data'),
+    sb('calib_asignaciones?select=id,serie,persona,base,desde,hasta,motivo&order=desde.asc') ]);
+  const d = cfg && cfg[0] ? cfg[0].data : {};
+  db = normalize({...d, certs: rows.map(fromRow), asig: asg||[]});
+}
+async function saveAsig(list){ saveLocal(); if(REMOTE && list.length) await sb('calib_asignaciones',{method:'POST',body:JSON.stringify(list)}); }
+
+/* --- asignación de equipos a personas (historial por N° de serie) --- */
+const curAsig = serie => { const k=serie.toUpperCase(); for(let i=db.asig.length-1;i>=0;i--){ const a=db.asig[i]; if(a.serie===k && !a.hasta) return a; } return null; };
+const histAsig = serie => db.asig.filter(a=>a.serie===serie.toUpperCase());
+/* asigna (o deja sin asignar si persona vacía). Devuelve filas modificadas para guardar */
+function setAsig(serie, persona, base, fecha, motivo='reasignación'){
+  const k=serie.toUpperCase(), cur=curAsig(k); persona=(persona||'').trim(); base=(base||'').trim().toUpperCase();
+  if(cur && cur.persona===persona && (cur.base||'')===base) return [];
+  if(!cur && !persona && !base) return [];
+  const out=[];
+  if(cur){ cur.hasta=fecha; cur.motivo=cur.motivo||motivo; out.push(cur); }
+  const n={id:`${k}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`, serie:k, persona, base, desde:fecha, hasta:null, motivo:null};
+  db.asig.push(n); out.push(n);
+  if(base && !db.cfg.bases.includes(base)){ db.cfg.bases.push(base); saveCfg(); }
+  return out;
+}
+function closeAsig(serie, fecha, motivo){ const cur=curAsig(serie); if(!cur) return []; cur.hasta=fecha; cur.motivo=motivo; return [cur]; }
+const whoHTML = a => a && a.persona ? `<div class="who"><b title="${esc(a.persona)}">${esc(a.persona)}</b></div>` : '<span class="hint">Sin asignar</span>';
+const baseHTML = a => a && a.base ? `<span class="base-tag">${esc(a.base)}</span>` : '<span class="hint">—</span>';
+/* personas que quedaron sin equipo por baja y todavía no recibieron otro */
+function sinEquipo(){
+  const conEquipo = new Set(db.asig.filter(a=>!a.hasta && a.persona).map(a=>a.persona.toUpperCase()));
+  const m = {}; db.asig.filter(a=>a.motivo==='baja' && a.persona && !conEquipo.has(a.persona.toUpperCase())).forEach(a=>{ m[a.persona.toUpperCase()]=a; });
+  return Object.values(m);
+}
+let cfgT;
+function saveCfg(){ saveLocal(); if(!REMOTE) return; clearTimeout(cfgT); cfgT = setTimeout(()=>
+  sb('calib_config',{method:'POST',body:JSON.stringify([{id:'cfg',data:{cfg:db.cfg,seq:db.seq,last:db.last}}])}).catch(e=>toast('Error guardando configuración en la nube')), 400); }
+async function saveCerts(list){ saveLocal(); if(REMOTE) await sb('calib_certificados',{method:'POST',body:JSON.stringify(list.map(rowOf))}); }
+async function deleteCert(id){ saveLocal(); if(REMOTE) await sb(`calib_certificados?id=eq.${encodeURIComponent(id)}`,{method:'DELETE'}); }
+
+/* ---------- utilidades ---------- */
+function token(){ const a='abcdefghijkmnpqrstuvwxyz23456789'; let t=''; const r=crypto.getRandomValues(new Uint8Array(10)); r.forEach(x=>t+=a[x%a.length]); return t; }
+const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sub = s => esc(s).replace(/\b([A-Z][a-z]?)(\d)/g,'$1<sub>$2</sub>');
+const pd = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const fmt = s => s ? s.split('-').reverse().join('/') : '';
+const fmt2 = s => s ? fmt(s).replace(/\/(\d\d)(\d\d)$/,'/$2') : '';
+const addDays = (s,n) => { const d = pd(s); d.setDate(d.getDate()+Number(n||0)); return iso(d); };
+const today = () => iso(new Date());
+const daysTo = s => Math.round((pd(s) - pd(today()))/864e5);
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),2800); }
+function baseUrl(){ let u = db.cfg.baseUrl || (location.protocol.startsWith('http') ? location.origin+location.pathname : DEF_URL); return u.endsWith('/')||u.endsWith('.html') ? u : u+'/'; }
+const certUrl = c => `${baseUrl()}?v=${c.tok}`;
+function qrSvg(txt, mm, ecc='M'){
+  if(!window.qrcode) return `<div style="width:${mm}mm;height:${mm}mm;border:.2mm dashed #999"></div>`;
+  const q = qrcode(0, ecc); q.addData(txt); q.make();
+  return q.createSvgTag({cellSize:1, margin:0, scalable:true}).replace('<svg ', `<svg style="width:${mm}mm;height:${mm}mm" `);
+}
+
+/* estado según el último certificado de cada serie */
+function latestMap(){ const m={}; db.certs.forEach(c=>{ const k=c.serie.toUpperCase(); if(!m[k] || c.fecha>m[k].fecha || (c.fecha===m[k].fecha && c.ts>m[k].ts)) m[k]=c; }); return m; }
+const maxCal = () => Number(db.cfg.maxCal)||4;
+const isLast = c => (c.ciclo||1) >= maxCal();
+const usedCal = serie => db.certs.filter(c=>c.serie.toUpperCase()===serie.toUpperCase()).reduce((m,c)=>Math.max(m,c.ciclo||1),0);
+const cycHTML = c => { const n=c.ciclo||1, M=maxCal(); return `<span class="cyc ${n>=M?'last':''}">${Array.from({length:M},(_,i)=>`<i class="${i<n?'f':''}"></i>`).join('')}</span><span class="cyc-t" style="${n>=M?'color:var(--bad)':''}">${n}/${M}</span>`; };
+function estado(c, lm){
+  if(lm[c.serie.toUpperCase()]!==c) return {k:'rep',t:'Reemplazado',cl:'b-gray'};
+  if(c.baja) return {k:'baja',t:`Dado de baja ${fmt2(c.baja)}`,cl:'b-gray'};
+  const d = daysTo(c.proxima);
+  if(d<0 && isLast(c)) return {k:'ven',t:`Vencido · DESCARTAR`,cl:'b-bad'};
+  if(d<0) return {k:'ven',t:`Vencido (${-d} d)`,cl:'b-bad'};
+  if(d<=avDias()) return {k:'av',t:`Vence en ${d} d`,cl:'b-bad'};
+  if(d<=30) return {k:'pv',t:`Vence en ${d} d`,cl:'b-warn'};
+  return {k:'vig',t:'Vigente',cl:'b-ok'};
+}
+const avDias = () => Number(db.cfg.avisos.dias)||5;
+
+/* =========================================================
+   DOCUMENTOS
+   ========================================================= */
+function certHTML(c, forceA5=false){
+  const a4 = db.cfg.certSize==='A4' && !forceA5;
+  const tec = db.cfg.tecnicos.find(t=>t.nombre===c.tecnico);
+  const ok = c.resultado==='PASÓ';
+  const rows = f => c.sensores.map(f).join('');
+  return `<div class="page cert-page ${a4?'a4':''}"><div class="cert">
+  <div class="c-head">
+    <div class="c-org"><img src="${LOGO}" alt=""><div><b>${esc(db.cfg.empresa)}</b><span>${esc(db.cfg.sector)} · Instrumentos de detección de gases</span></div></div>
+    <div class="c-title">Certificado de Calibración</div>
+    <div class="c-nro"><small>N° de certificado</small><b>${esc(c.nro)}</b></div>
+  </div>
+  <div class="c-sec">Información del instrumento</div>
+  <table class="ct"><thead><tr><th>Cliente</th><th style="width:22%">Equipo</th><th>Marca</th><th>Modelo</th><th style="width:18%">N° de serie</th><th>ID del equipo</th><th style="width:11%">Calibración N°</th></tr></thead>
+    <tbody><tr><td>${esc(c.cliente)}</td><td>${sub(c.equipo)}</td><td>${esc(c.marca)}</td><td>${esc(c.modelo)}</td><td class="sn">${esc(c.serie)}</td><td>${esc(c.idEq||'—')}</td><td><span class="c-cyc" ${isLast(c)?'style="border-color:#b91c1c;color:#b91c1c"':''}>${c.ciclo||1} de ${maxCal()}</span></td></tr></tbody></table>
+  ${isLast(c)?`<div class="c-last">ÚLTIMA CALIBRACIÓN PERMITIDA · EQUIPO DESCARTABLE · RETIRAR DE SERVICIO AL ${fmt(c.proxima)}</div>`:''}
+  <div class="c-sec">Seteo de alarmas</div>
+  <table class="ct"><thead><tr><th style="width:24%">Sensor</th><th>Alarma 1</th><th>Alarma 2</th><th>TWA</th><th>STEL</th></tr></thead>
+    <tbody>${rows(s=>`<tr><td>${sub(s.sensor)}</td><td>${esc(s.a1)}</td><td>${esc(s.a2)}</td><td>${esc(s.twa)}</td><td>${esc(s.stel)}</td></tr>`)}</tbody></table>
+  <div class="c-sec">Calibración</div>
+  <table class="ct"><thead><tr><th style="width:17%">Sensor</th><th>Lectura de cero</th><th>Concentración del gas</th><th>Cilindro N°</th><th>Proveedor</th><th>Tolerancia</th><th>Resultado</th></tr></thead>
+    <tbody>${rows(s=>`<tr><td>${sub(s.sensor)}</td><td>${esc(c.cero)}</td><td>${esc(s.conc)}</td><td>${esc(s.cil||'—')}</td><td>${esc(s.prov)}</td><td>${esc(s.tol)}</td><td class="${ok?'res-ok':'res-bad'}">${esc(c.resultado)}</td></tr>`)}</tbody></table>
+  ${c.obs?`<div class="c-obs"><b>Observaciones:</b> ${esc(c.obs)}</div>`:''}
+  <div class="c-foot">
+    <div><small>Fecha de calibración</small><b>${fmt(c.fecha)}</b></div>
+    <div><small>Próxima calibración recomendada</small><b>${fmt(c.proxima)}</b><em>${c.dias} días</em></div>
+    <div><small>Resultado</small><span class="big ${ok?'res-ok':'res-bad'}">${esc(c.resultado)}</span></div>
+    <div><small>Calibrado por</small><b>${esc(c.tecnico)}</b></div>
+    <div class="c-sig"><small style="align-self:flex-start">Firma</small>${tec&&tec.firma?`<img src="${tec.firma}" alt="">`:''}<div class="ln"></div></div>
+  </div>
+  <div class="c-bot"><span class="st">SERVICIO TÉCNICO</span><span>${esc(db.cfg.empresa)} · Comodoro Rivadavia, Chubut</span><span class="sp"></span><span style="text-align:right">Emitido ${fmt(c.emitido||c.fecha)} · Válido con firma del técnico<br>Verificá este certificado escaneando el código</span><div class="qr">${qrSvg(certUrl(c),13)}</div></div>
+  </div></div>`;
+}
+function labelHTML(c){
+  const [w,h] = LBL[db.cfg.lblSize]||LBL['30x20'];
+  const qr = db.cfg.lblQR;
+  const sens = c.sensores.map(s=>s.sensor.split(' ')[0]).join('/');
+  const emp = esc(db.cfg.empresa.replace(/ S\.?A\.?$/,''));
+  if(w<=35){ // etiqueta compacta 30x20: S/N a todo el ancho, fechas + QR debajo
+    const qm = Math.min(h-11.2, 9.6);
+    return `<div class="page lbl-page" style="width:${w}mm;height:${h}mm"><div class="lbl xs ${qr?'':'noqr'}"><div class="lbl-in">
+      <div class="lbl-band"><span>${emp}</span><span>${isLast(c)?'ÚLTIMA CAL.':'CALIBRADO ✓'}</span></div>
+      <div class="lbl-sn"><i>S/N</i><b>${esc(c.serie)}</b></div>
+      <div class="lbl-body">
+        <div class="lbl-data">
+          ${c.idEq?`<div class="lbl-r"><i>ID</i><b>${esc(c.idEq)}</b></div>`:''}
+          <div class="lbl-r"><i>CAL</i><b>${fmt2(c.fecha)}</b></div>
+          <div class="lbl-r nx"><i>VTO</i><b>${fmt2(c.proxima)}</b></div>
+        </div>
+        ${qr?`<div class="lbl-qr">${qrSvg(certUrl(c), qm, 'L')}</div>`:''}
+      </div>
+      <div class="lbl-ft"><span>${c.importado?'':esc(c.nro)}</span><span class="${isLast(c)?'lastt':''}">${isLast(c)?'ÚLTIMA ':''}${c.ciclo||1}/${maxCal()}</span></div>
+    </div></div></div>`;
+  }
+  const qmm = Math.min(h-11, 17), tall = h>=36;
+  return `<div class="page lbl-page" style="width:${w}mm;height:${h}mm"><div class="lbl ${qr?'':'noqr'}"><div class="lbl-in">
+    <div class="lbl-band"><span>${emp}</span><span>CALIBRADO ✓</span></div>
+    <div class="lbl-body">
+      <div class="lbl-data">
+        <div class="lbl-r id"><i>${c.idEq?'ID':'S/N'}</i><b>${esc(c.idEq||c.serie)}</b></div>
+        ${c.idEq?`<div class="lbl-r"><i>S/N</i><b>${esc(c.serie)}</b></div>`:''}
+        ${tall?`<div class="lbl-r"><i>Equipo</i><b>${esc(c.modelo)} · ${sub(sens)}</b></div>`:''}
+        <div class="lbl-r"><i>Calibr.</i><b>${fmt(c.fecha)}</b></div>
+        <div class="lbl-r nx"><i>Próxima</i><b>${fmt(c.proxima)}</b></div>
+        ${tall?`<div class="lbl-r"><i>Técnico</i><b>${esc(c.tecnico)}</b></div>`:''}
+      </div>
+      ${qr?`<div class="lbl-qr">${qrSvg(certUrl(c), qmm)}</div>`:''}
+    </div>
+    <div class="lbl-ft"><span>${esc(c.nro)}</span><span class="${isLast(c)?'lastt':''}">${sub(sens)} · ${isLast(c)?'ÚLTIMA CALIB. ':'Calib. '}${c.ciclo||1}/${maxCal()}</span></div>
+  </div></div></div>`;
+}
+
+/* ---------- imprimir / PDF ---------- */
+function printDocs(certs, kind){
+  if(kind==='cert'){ const n=certs.length; certs=certs.filter(c=>!c.importado); if(n && !certs.length) return toast('Equipos importados: no tienen certificado emitido por la app'); if(certs.length<n) toast(`Se omiten ${n-certs.length} equipos importados (sin certificado propio)`); }
+  if(!certs.length) return;
+  const area = $('#print-area');
+  if(kind==='cert'){
+    $('#page-style').textContent = db.cfg.certSize==='A4' ? '@page{size:297mm 210mm;margin:0}' : '@page{size:210mm 148mm;margin:0}';
+    area.innerHTML = certs.map(c=>certHTML(c)).join('');
+  } else {
+    const [w,h] = LBL[db.cfg.lblSize]||LBL['30x20'];
+    $('#page-style').textContent = `@page{size:${w}mm ${h}mm;margin:0}`;
+    area.innerHTML = certs.map(labelHTML).join('');
+  }
+  const imgs = [...area.querySelectorAll('img')];
+  Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r;}))).then(()=>setTimeout(()=>window.print(),120));
+}
+async function certPdf(c){
+  const {jsPDF} = window.jspdf; const stage = $('#pdf-stage');
+  const a4 = db.cfg.certSize==='A4'; const W=a4?297:210, H=a4?210:148;
+  stage.innerHTML = certHTML(c, true);           // se renderiza A5 y se escala (misma proporción)
+  const cv = await html2canvas(stage.firstElementChild,{scale:a4?4:3,backgroundColor:'#fff',logging:false});
+  const pdf = new jsPDF({orientation:'landscape',unit:'mm',format:[H,W]});
+  pdf.addImage(cv.toDataURL('image/jpeg',.93),'JPEG',0,0,W,H);
+  pdf.link(W-20*W/210, H-17*H/148, 16*W/210, 16*H/148, {url:certUrl(c)});
+  pdf.setProperties({title:`Certificado ${c.nro} - S/N ${c.serie}`, author:db.cfg.empresa});
+  stage.innerHTML='';
+  return {name:`Certificado_${c.serie.replace(/[^\w.-]+/g,'_')}_${c.fecha}.pdf`, blob:pdf.output('blob')};
+}
+async function pdfZip(certs){
+  certs = certs.filter(c=>!c.importado); if(!certs.length) return toast('Equipos importados: no tienen certificado emitido por la app');
+  if(!window.html2canvas || !window.jspdf){ toast('No cargaron las librerías de PDF (revisá la conexión)'); return; }
+  const files = [];
+  for(let i=0;i<certs.length;i++){ toast(`Generando PDF ${i+1} de ${certs.length}…`); files.push(await certPdf(certs[i])); }
+  if(files.length===1) return dl(files[0].blob, files[0].name);
+  if(!window.JSZip){ files.forEach(f=>dl(f.blob,f.name)); return; }
+  const z = new JSZip(); files.forEach(f=>z.file(f.name,f.blob));
+  dl(await z.generateAsync({type:'blob'}), `Certificados_${today()}.zip`);
+  toast(`${files.length} PDFs descargados en ZIP`);
+}
+function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500); }
+
+function previewInto(el, c){
+  if(c.importado){ const [w,h]=LBL[db.cfg.lblSize]||LBL['30x20'], lsc=Math.min(4,300/(w*3.78));
+    el.innerHTML = `<div class="prev-box" style="max-width:420px"><div class="cap">Equipo importado del inventario</div><p class="hint" style="margin:0">Calibración del ${fmt(c.fecha)} hecha antes de usar la app: el certificado original está fuera del sistema. Podés imprimir la etiqueta con QR; el próximo certificado lo emite la app.</p></div>
+    <div class="prev-box"><div class="cap">Etiqueta ${w}×${h} mm</div><div style="width:${w*3.78*lsc}px;height:${h*3.78*lsc}px"><div class="prev-scale" style="transform:scale(${lsc})">${labelHTML(c)}</div></div></div>`; return; }
+  const [w,h] = LBL[db.cfg.lblSize]||LBL['30x20'];
+  const a4 = db.cfg.certSize==='A4';
+  const cw = (a4?297:210)*3.78, chh=(a4?210:148)*3.78;
+  const lsc = Math.min(4, 300/(w*3.78));
+  const sc = Math.min(1, (Math.min(el.clientWidth||900, 1000) - w*3.78*lsc - 60) / cw);
+  el.innerHTML = `<div class="prev-box"><div class="cap">Certificado ${a4?'A4':'A5'} · ${c.nro}</div><div style="width:${cw*sc}px;height:${chh*sc}px"><div class="prev-scale" style="transform:scale(${sc})">${certHTML(c)}</div></div></div>
+  <div class="prev-box"><div class="cap">Etiqueta ${w}×${h} mm (ampliada ×${lsc.toFixed(1)})</div><div style="width:${w*3.78*lsc}px;height:${h*3.78*lsc}px"><div class="prev-scale" style="transform:scale(${lsc})">${labelHTML(c)}</div></div></div>`;
+}
+
+/* =========================================================
+   FORMULARIO
+   ========================================================= */
+let sensores = [], equipos = [], lote = [];
+function fillForm(){
+  const L = db.last;
+  $('#f-cliente').value=L.cliente; $('#f-equipo').value=L.equipo; $('#f-marca').value=L.marca; $('#f-modelo').value=L.modelo;
+  $('#f-fecha').value=today(); $('#f-dias').value=L.dias;
+  fillTecSelect(L.tecnico);
+  sensores = structuredClone(L.sensores); renderSens();
+  if(!equipos.length) equipos=[{serie:'',idEq:'',persona:'',base:'',cero:'0',resultado:'PASÓ',obs:''}];
+  renderEq(); updVence();
+}
+function fillTecSelect(sel){ $('#f-tecnico').innerHTML = db.cfg.tecnicos.map(t=>`<option ${t.nombre===sel?'selected':''}>${esc(t.nombre)}</option>`).join(''); }
+function updVence(){ const f=$('#f-fecha').value, d=$('#f-dias').value; $('#f-vence').value = f&&d ? fmt(addDays(f,d)) : ''; }
+['#f-fecha','#f-dias'].forEach(s=>$(s).addEventListener('input',updVence));
+
+function renderSens(){
+  const F = [['sensor','dl-sensor'],['a1'],['a2'],['twa'],['stel'],['conc'],['cil'],['prov','dl-prov'],['tol']];
+  $('#t-sens tbody').innerHTML = sensores.map((s,i)=>`<tr>${F.map(([k,dl])=>`<td><input class="in" data-i="${i}" data-k="${k}" value="${esc(s[k])}" ${dl?`list="${dl}"`:''} ${k==='sensor'?'style="min-width:110px"':''}></td>`).join('')}
+    <td>${sensores.length>1?`<button class="btn sm ghost danger" data-del="${i}" title="Quitar">✕</button>`:''}</td></tr>`).join('');
+}
+$('#t-sens').addEventListener('input',e=>{ const t=e.target; if(t.dataset.k) sensores[t.dataset.i][t.dataset.k]=t.value; });
+$('#t-sens').addEventListener('click',e=>{ const b=e.target.closest('[data-del]'); if(b){ sensores.splice(+b.dataset.del,1); renderSens(); }});
+$('#add-sensor').onclick=()=>{ if(sensores.length>=4) return toast('Máximo 4 sensores'); sensores.push({sensor:'',a1:'',a2:'',twa:'',stel:'',conc:'',cil:'',prov:'GASCO',tol:''}); renderSens(); };
+
+function renderEq(){
+  $('#t-eq tbody').innerHTML = equipos.map((q,i)=>`<tr>
+    <td class="hint num">${i+1}</td>
+    <td><input class="in mono" data-i="${i}" data-k="serie" value="${esc(q.serie)}" placeholder="N° de serie" list="dl-series" autocomplete="off" style="min-width:120px"></td>
+    <td><input class="in" data-i="${i}" data-k="persona" value="${esc(q.persona||'')}" placeholder="Sin asignar" list="dl-personas" autocomplete="off" style="min-width:170px"></td>
+    <td><input class="in" data-i="${i}" data-k="base" value="${esc(q.base||'')}" list="dl-bases" autocomplete="off" style="width:90px;text-transform:uppercase"></td>
+    <td><div class="bar" style="flex-wrap:nowrap;gap:6px"><select class="in cyc-sel num ${eqCiclo(q)>=maxCal()?'last':''}" data-i="${i}" data-k="ciclo">${Array.from({length:maxCal()},(_,k)=>`<option value="${k+1}" ${eqCiclo(q)===k+1?'selected':''}>${k+1}/${maxCal()}</option>`).join('')}</select><span class="eq-msg" id="eqm-${i}">${eqMsg(q)}</span></div></td>
+    <td><input class="in num" data-i="${i}" data-k="cero" value="${esc(q.cero)}" style="width:80px"></td>
+    <td><select class="in" data-i="${i}" data-k="resultado" style="width:110px"><option ${q.resultado==='PASÓ'?'selected':''}>PASÓ</option><option ${q.resultado==='NO PASÓ'?'selected':''}>NO PASÓ</option></select></td>
+    <td><input class="in" data-i="${i}" data-k="obs" value="${esc(q.obs)}"></td>
+    <td><button class="btn sm ghost danger" data-del="${i}" title="Quitar">✕</button></td></tr>`).join('');
+  updCount();
+}
+// N° de calibración sugerido: siguiente al último registrado para esa serie (editable para equipos con historia previa)
+function eqCiclo(q){ if(q.cicloMan) return +q.ciclo; const u = q.serie.trim() ? usedCal(q.serie.trim()) : 0; return Math.min(u+1, maxCal()); }
+function eqMsg(q){ const s=q.serie.trim(); if(!s) return ''; const u=usedCal(s);
+  if(u>=maxCal() && !q.cicloMan) return '<span class="eq-msg over">AGOTADO · descartar</span>';
+  return eqCiclo(q)>=maxCal() ? '<span class="eq-msg last">ÚLTIMA</span>' : ''; }
+function updEqRow(i){ const q=equipos[i], sel=$(`#t-eq select[data-i="${i}"][data-k="ciclo"]`); if(!sel) return; sel.value=eqCiclo(q); sel.classList.toggle('last', eqCiclo(q)>=maxCal()); $('#eqm-'+i).innerHTML=eqMsg(q); }
+function updCount(){
+  const n = equipos.filter(q=>q.serie.trim()).length;
+  $('#eq-count').textContent = n; $('#btn-gen').disabled = !n;
+  $('#gen-hint').textContent = n ? `Se van a emitir ${n} certificado${n>1?'s':''} y ${n} etiqueta${n>1?'s':''}.` : 'Cargá al menos un N° de serie.';
+}
+$('#t-eq').addEventListener('input',e=>{ const t=e.target, k=t.dataset.k, i=+t.dataset.i; if(!k) return;
+  equipos[i][k]=t.value; if(k==='ciclo') equipos[i].cicloMan=true; if(k==='serie'){ equipos[i].cicloMan=false; } if(k==='serie'||k==='ciclo') updEqRow(i); updCount(); });
+// Sugerencias: series del registro (con su persona), personas y bases conocidas
+function fillDatalists(){
+  const act=Object.values(latestMap()).filter(c=>!c.baja);
+  $('#dl-series').innerHTML = act.map(c=>{ const a=curAsig(c.serie); return `<option value="${esc(c.serie)}">${esc(a&&a.persona||'Sin asignar')}${a&&a.base?' · '+esc(a.base):''}</option>`; }).join('');
+  const pers={}; db.asig.forEach(a=>{ if(a.persona) pers[a.persona.toUpperCase()]=a; });
+  $('#dl-personas').innerHTML = Object.values(pers).map(a=>`<option value="${esc(a.persona)}">${esc(a.base||'')}</option>`).join('');
+  $('#dl-bases').innerHTML = db.cfg.bases.map(b=>`<option value="${esc(b)}">`).join('');
+  const vb=$('#v-base'), cur=vb.value; vb.innerHTML='<option value="">Todas las bases</option>'+db.cfg.bases.map(b=>`<option ${b===cur?'selected':''}>${esc(b)}</option>`).join('');
+}
+// Al cargar un S/N conocido se completan persona y base actuales; al elegir una persona conocida, su base
+$('#t-eq').addEventListener('change',e=>{ const t=e.target, k=t.dataset.k, i=+t.dataset.i, q=equipos[i];
+  const flash = el => { if(el){ el.style.background='#fff7e6'; setTimeout(()=>el.style.background='',1200); } };
+  if(k==='serie'){ const a=curAsig(t.value.trim()); if(a && !(q.persona||'').trim()){
+      q.persona=a.persona; q.base=a.base||''; const ip=$(`#t-eq input[data-i="${i}"][data-k="persona"]`), ib=$(`#t-eq input[data-i="${i}"][data-k="base"]`);
+      if(ip){ ip.value=q.persona; flash(ip); } if(ib){ ib.value=q.base; flash(ib); } } }
+  if(k==='persona' && !(q.base||'').trim()){ const v=t.value.trim().toUpperCase(); const a=[...db.asig].reverse().find(x=>x.persona && x.persona.toUpperCase()===v);
+    if(a && a.base){ q.base=a.base; const ib=$(`#t-eq input[data-i="${i}"][data-k="base"]`); if(ib){ ib.value=a.base; flash(ib); } } }
+});
+$('#t-eq').addEventListener('keydown',e=>{ if(e.key==='Enter' && e.target.dataset.k==='serie'){ e.preventDefault(); const i=+e.target.dataset.i;
+  if(i===equipos.length-1){ addEq(); } $(`#t-eq input[data-i="${i+1}"][data-k="serie"]`)?.focus(); }});
+$('#t-eq').addEventListener('click',e=>{ const b=e.target.closest('[data-del]'); if(b){ equipos.splice(+b.dataset.del,1); if(!equipos.length) addEq(false); renderEq(); }});
+function addEq(r=true){ const p=equipos[equipos.length-1]; equipos.push({serie:'',idEq:'',persona:'',base:p?p.base||'':'',cero:p?p.cero:'0',resultado:'PASÓ',obs:''}); if(r) renderEq(); }
+$('#add-eq').onclick=()=>{ addEq(); $$('#t-eq input[data-k="serie"]').pop().focus(); };
+$('#paste-toggle').onclick=()=>{ $('#paste-box').hidden=!$('#paste-box').hidden; if(!$('#paste-box').hidden) $('#paste-ta').focus(); };
+$('#paste-add').onclick=()=>{
+  const lines = $('#paste-ta').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return;
+  equipos = equipos.filter(q=>q.serie.trim());
+  lines.forEach(l=>{ const [s,per,bs] = l.split(/[;\t]/).map(x=>(x||'').trim()); const a=curAsig(s||'');
+    equipos.push({serie:s,idEq:'',persona:per||(a?a.persona:''),base:(bs||(a?a.base:'')||'').toUpperCase(),cero:'0',resultado:'PASÓ',obs:''}); });
+  $('#paste-ta').value=''; $('#paste-box').hidden=true; renderEq(); toast(`${lines.length} equipos agregados`);
+};
+$('#btn-clear').onclick=()=>{ equipos=[{serie:'',idEq:'',persona:'',base:'',cero:'0',resultado:'PASÓ',obs:''}]; renderEq(); };
+
+function nextSeq(yr){
+  const re = new RegExp(`-${yr}-(\\d+)$`);
+  const mx = db.certs.reduce((m,c)=>{ const x=re.exec(c.nro); return x?Math.max(m,+x[1]):m; }, 0);
+  db.seq[yr] = Math.max(db.seq[yr]||0, mx) + 1; return db.seq[yr];
+}
+$('#btn-gen').onclick=async()=>{
+  const v = id=>$(id).value.trim();
+  const base = {cliente:v('#f-cliente'),equipo:v('#f-equipo'),marca:v('#f-marca'),modelo:v('#f-modelo'),fecha:v('#f-fecha'),dias:+v('#f-dias'),tecnico:v('#f-tecnico')};
+  if(!base.fecha||!base.dias) return toast('Completá fecha y días a la próxima calibración');
+  const sens = sensores.filter(s=>s.sensor.trim());
+  if(!sens.length) return toast('Cargá al menos un sensor');
+  const list = equipos.filter(q=>q.serie.trim());
+  const dup = list.map(q=>q.serie.trim().toUpperCase()).filter((s,i,a)=>a.indexOf(s)!==i);
+  if(dup.length) return toast('N° de serie repetido: '+dup[0]);
+  const agot = list.filter(q=>!q.cicloMan && usedCal(q.serie.trim())>=maxCal());
+  if(agot.length) return toast(`S/N ${agot[0].serie.trim().toUpperCase()} ya tiene ${maxCal()} calibraciones: debe descartarse`);
+  const rep = list.filter(q=>{ const s=q.serie.trim().toUpperCase(), n=eqCiclo(q); return db.certs.some(c=>c.serie.toUpperCase()===s && (c.ciclo||1)===n); });
+  if(rep.length && !confirm(`El S/N ${rep[0].serie.trim().toUpperCase()} ya tiene un certificado como calibración N° ${eqCiclo(rep[0])}. ¿Emitir igual?`)) return;
+  const yr = base.fecha.slice(0,4), ts=Date.now();
+  const nuevos = list.map((q,i)=>({...base, id:ts+'-'+i, ts:ts+i, tok:token(), ciclo:eqCiclo(q),
+      nro:`${db.cfg.prefijo}-${yr}-${String(nextSeq(yr)).padStart(4,'0')}`,
+      serie:q.serie.trim().toUpperCase(), idEq:(q.idEq||'').trim().toUpperCase(), persona:(q.persona||'').trim(), base:(q.base||'').trim().toUpperCase(), cero:q.cero, resultado:q.resultado, obs:q.obs.trim(),
+      proxima:addDays(base.fecha,base.dias), emitido:today(), sensores:structuredClone(sens), aviso:''}));
+  $('#btn-gen').disabled = true;
+  db.certs.push(...nuevos);
+  db.last = {cliente:base.cliente,equipo:base.equipo,marca:base.marca,modelo:base.modelo,dias:base.dias,tecnico:base.tecnico,sensores:structuredClone(sens)};
+  // si no se indica persona se conserva la asignación vigente (no se desasigna al recalibrar)
+  nuevos.forEach(c=>{ const cur=curAsig(c.serie); if(!c.persona && cur){ c.persona=cur.persona; c.base=c.base||cur.base||''; } });
+  const asgRows = nuevos.flatMap(c=>setAsig(c.serie, c.persona, c.base, c.fecha, 'reasignación'));
+  try{ await saveCerts(nuevos); await saveAsig(asgRows); saveCfg(); }
+  catch(e){ db.certs = db.certs.filter(c=>!nuevos.includes(c)); saveLocal(); $('#btn-gen').disabled=false; return toast('No se pudo guardar en la nube. Revisá la conexión y probá de nuevo.'); }
+  lote = nuevos; refresh();
+  equipos=[{serie:'',idEq:'',persona:'',base:'',cero:'0',resultado:'PASÓ',obs:''}]; renderEq();
+  $('#lote-panel').hidden=false; $('#lote-n').textContent=`${lote.length} certificado${lote.length>1?'s':''} · ${lote[0].nro}${lote.length>1?' → '+lote[lote.length-1].nro:''}`;
+  const ult = lote.filter(isLast);
+  $('#lote-alert').innerHTML = ult.length ? `<div class="alert rep"><span style="font-size:18px">⚠</span><div><b class="t">Reponer equipo${ult.length>1?'s':''}: ${ult.length} en su última calibración</b>
+    ${ult.map(c=>`<span class="mono">${esc(c.serie)}</span>${c.persona?' ('+esc(c.persona)+(c.base?' · '+esc(c.base):'')+')':''}`).join(', ')} — quedan en servicio hasta el <b>${fmt(ult[0].proxima)}</b> y después se descartan. Planificá la compra del reemplazo.${REMOTE?' Se envía aviso por mail mañana a las 08:00.':''}</div></div>` : '';
+  previewInto($('#lote-prev'), ult[0]||lote[0]); $('#lote-panel').scrollIntoView({behavior:'smooth'});
+  toast('Certificados guardados en el registro');
+};
+$('#lote-cert').onclick=()=>printDocs(lote,'cert');
+$('#lote-lbl').onclick=()=>printDocs(lote,'lbl');
+$('#lote-pdf').onclick=()=>pdfZip(lote);
+
+/* =========================================================
+   VENCIMIENTOS
+   ========================================================= */
+let vf = '';
+function vencRows(){
+  const A = avDias(), q = $('#v-q').value.trim().toLowerCase();
+  const bajas = $('#v-bajas').checked, vb = $('#v-base').value;
+  return Object.values(latestMap()).filter(c=>bajas || !c.baja).map(c=>({c,d:daysTo(c.proxima),a:curAsig(c.serie)}))
+    .filter(({a})=> !vb || (a&&a.base)===vb)
+    .filter(({c,d})=> (!vf || (vf==='ven'&&d<0) || (vf==='av'&&d>=0&&d<=A) || (vf==='30'&&d>=0&&d<=30) || (vf==='rep'&&isLast(c)))
+      && (!q || [c.serie,c.idEq,c.modelo,c.marca,c.nro,curAsig(c.serie)?.persona,curAsig(c.serie)?.base].join(' ').toLowerCase().includes(q)))
+    .sort((a,b)=>a.c.proxima.localeCompare(b.c.proxima));
+}
+function avisoTxt(c,d){
+  const A = avDias();
+  if(c.baja) return '<span class="hint">—</span>';
+  const rp = isLast(c) ? (c.avisoRep ? `<span class="badge" style="background:#f3e8ff;color:#6b21a8">Reposición avisada ${fmt2(c.avisoRep)}</span><br>` : `<span class="badge" style="background:#f3e8ff;color:#6b21a8">Reposición: ${REMOTE?'próximo control':'pendiente'}</span><br>`) : '';
+  return rp + avisoVto(c,d,A);
+}
+function avisoVto(c,d,A){
+  if(c.aviso) return `<span class="badge b-ok">Enviado ${fmt2(c.aviso)}</span>`;
+  if(d<=A) return REMOTE ? `<span class="badge b-warn">Próximo control 08:00</span>` : `<span class="badge b-gray">Pendiente · modo local</span>`;
+  return `<span class="hint">Programado ${fmt2(addDays(c.proxima,-A))}</span>`;
+}
+function renderVenc(){
+  const A = avDias(), act = Object.values(latestMap()).filter(c=>!c.baja), all = act.map(c=>daysTo(c.proxima));
+  $('#vc-rep').textContent = act.filter(isLast).length;
+  $('#vc-ven').textContent = all.filter(d=>d<0).length;
+  $('#vc-av').textContent = all.filter(d=>d>=0&&d<=A).length; $('#vc-av-l').textContent = `Vencen en ${A} días`;
+  $('#vc-30').textContent = all.filter(d=>d>=0&&d<=30).length;
+  $('#vc-all').textContent = all.length;
+  $$('#v-chips .chip').forEach(b=>b.classList.toggle('on', b.dataset.f===vf && vf!==''));
+  const rows = vencRows();
+  $('#t-venc tbody').innerHTML = rows.length ? rows.map(({c,d,a})=>`<tr class="${d<=A?'hl':''}">
+    <td class="mono"><b>${esc(c.serie)}</b>${c.importado?'<br><small class="hint" style="font-family:inherit">importado</small>':''}</td><td>${whoHTML(a)}</td><td>${baseHTML(a)}</td>
+    <td style="white-space:nowrap">${cycHTML(c)}</td>
+    <td class="num">${fmt(c.fecha)}</td><td class="num"><b>${fmt(c.proxima)}</b></td>
+    <td class="dias ${d<0?'d-bad':d<=A?'d-bad':d<=30?'d-warn':'d-ok'}">${d}</td>
+    <td><span class="badge ${estado(c,latestMap()).cl}">${estado(c,latestMap()).t}</span></td>
+    <td>${avisoTxt(c,d)}</td>
+    <td style="white-space:nowrap"><button class="btn sm" data-ver="${c.id}">Ver</button> ${c.baja?`<button class="btn sm ghost" data-alta="${c.id}">Reactivar</button>`:isLast(c)?`<button class="btn sm danger" data-baja="${c.id}">Dar de baja</button>`:`<button class="btn sm" data-recal="${c.id}">Recalibrar</button>`}</td></tr>`).join('')
+    : `<tr><td colspan="10" class="empty">${db.certs.length?'Ningún equipo en este filtro.':'Sin equipos todavía. Se agregan al emitir certificados, o importá tu planilla con «Importar inventario».'}</td></tr>`;
+  const se = sinEquipo();
+  $('#v-need').innerHTML = se.length ? `<div class="alert need" style="margin:0 0 10px"><span style="font-size:16px">👤</span><div><b class="t">${se.length} persona${se.length>1?'s':''} sin detector (equipo dado de baja)</b>
+    ${se.map(a=>`<span style="white-space:nowrap">${esc(a.persona)}${a.base?' · '+esc(a.base):''} <button class="btn sm" data-reemp="${esc(a.persona)}" data-rb="${esc(a.base||'')}">Asignar equipo nuevo</button></span>`).join(' ')}</div></div>` : '';
+  // panel avisos
+  $('#a-dest').value = db.cfg.avisos.dest; $('#a-dias').value = A;
+  $('#a-conn').className = 'conn '+(REMOTE?'on':'off');
+  $('#a-conn').innerHTML = REMOTE
+    ? '<span>●</span><span>Conectado a la base de datos. El envío diario de mails queda activo con la app publicada en Vercel.</span>'
+    : '<span>●</span><span><b>Modo local.</b> Los datos quedan solo en este navegador y los mails no se envían. Se activan al publicar la app (Supabase + Vercel).</span>';
+  const pend = act.filter(c=>!c.aviso && daysTo(c.proxima)<=A).sort((a,b)=>a.proxima.localeCompare(b.proxima));
+  const pendRep = act.filter(c=>isLast(c) && !c.avisoRep);
+  const dest = db.cfg.avisos.dest.split(/[,;\s]+/).filter(x=>x.includes('@'));
+  $('#a-next').innerHTML = pend.length
+    ? `<div style="margin-bottom:6px"><b>${pend.length} equipo${pend.length>1?'s':''}</b> en el próximo aviso${dest.length?` → ${esc(dest.join(', '))}`:' · <span style="color:var(--bad)">falta cargar destinatarios</span>'}</div>`
+      + pend.slice(0,8).map(c=>{ const a=curAsig(c.serie); return `<div>• <span class="mono">${esc(c.serie)}</span>${a&&a.persona?' ('+esc(a.persona)+')':''} — vence ${fmt(c.proxima)}${isLast(c)?' · <b style="color:var(--bad)">descartar</b>':''}</div>`; }).join('') + (pend.length>8?`<div>… y ${pend.length-8} más</div>`:'')
+    : 'Sin vencimientos pendientes de aviso.';
+  if(pendRep.length) $('#a-next').innerHTML += `<div style="margin-top:8px;color:#6b21a8"><b>Reposición:</b> ${pendRep.length} equipo${pendRep.length>1?'s':''} en su última calibración — ${pendRep.slice(0,6).map(c=>{ const a=curAsig(c.serie); return esc(a&&a.persona||c.serie); }).join(', ')}${pendRep.length>6?'…':''}</div>`;
+  const nb = all.filter(d=>d<=A).length + act.filter(c=>isLast(c)&&daysTo(c.proxima)>A).length; $('#tab-venc').hidden = !nb; $('#tab-venc').textContent = nb;
+}
+$('#v-q').oninput = renderVenc;
+$('#v-chips').addEventListener('click',e=>{ const b=e.target.closest('.chip'); if(b){ vf = (vf===b.dataset.f)?'':b.dataset.f; renderVenc(); }});
+$('#t-venc').addEventListener('click',async e=>{ const v=e.target.closest('[data-ver]'), r=e.target.closest('[data-recal]'), b=e.target.closest('[data-baja]'), a=e.target.closest('[data-alta]');
+  if(v) openModal(v.dataset.ver); if(r){ mc=db.certs.find(c=>c.id===r.dataset.recal); recal(); }
+  if(b||a){ const c=db.certs.find(x=>x.id===(b||a).dataset[b?'baja':'alta']);
+    const a0 = curAsig(c.serie);
+    if(b && !confirm(`¿Dar de baja el equipo S/N ${c.serie}${a0&&a0.persona?' de '+a0.persona:''}? Sale del control de vencimientos.`)) return;
+    c.baja = b ? today() : '';
+    let ar = [];
+    if(b) ar = closeAsig(c.serie, today(), 'baja');
+    else { const last = histAsig(c.serie).pop(); if(last && last.motivo==='baja'){ ar = setAsig(c.serie, last.persona, last.base, today(), 'reactivación'); } }
+    try{ await saveCerts([c]); await saveAsig(ar); toast(b?(a0&&a0.persona?`Equipo dado de baja: ${a0.persona} queda sin detector`:'Equipo dado de baja'):'Equipo reactivado'); }catch(_){ toast('No se pudo guardar en la nube'); } refresh(); } });
+$('#v-need').addEventListener('click',e=>{ const b=e.target.closest('[data-reemp]'); if(!b) return;
+  equipos=[{serie:'',idEq:'',persona:b.dataset.reemp,base:b.dataset.rb,cero:'0',resultado:'PASÓ',obs:''}]; renderEq(); showView('nueva');
+  $('#t-eq input[data-k="serie"]').focus(); toast(`Cargá el N° de serie del equipo nuevo para ${b.dataset.reemp}`); });
+$('#v-base').onchange = renderVenc;
+$('#v-bajas').onchange = renderVenc;
+$('#a-dest').onchange=e=>{ db.cfg.avisos.dest=e.target.value.trim(); saveCfg(); renderVenc(); toast('Destinatarios guardados'); };
+$('#a-dias').onchange=e=>{ const n=Math.max(1,Math.min(60,+e.target.value||5)); db.cfg.avisos.dias=n; saveCfg(); refresh(); toast(`Aviso ${n} días antes`); };
+
+/* =========================================================
+   IMPORTAR INVENTARIO (pegar desde Excel)
+   ========================================================= */
+function parseFecha(s){ const m=String(s||'').trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/); if(!m) return '';
+  const y=m[3].length===2?'20'+m[3]:m[3], r=`${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`, d=pd(r);
+  return (d.getMonth()+1===+m[2] && d.getDate()===+m[1]) ? r : ''; }
+function normMarca(s){ s=(s||'').trim().toUpperCase().replace(/\s+/g,' '); return /^ION/.test(s) ? 'ION SCIENCE' : s; }
+let impRows = [];
+function parseInventario(txt){
+  const lines = txt.split(/\r?\n/).filter(l=>l.trim());
+  let col = {emp:0, per:1, marca:2, serie:3, fcal:4, fven:5, base:7};
+  const h = lines[0] && lines[0].toLowerCase();
+  if(h && /serie/.test(h)){ const c=lines.shift().split('\t').map(x=>x.trim().toLowerCase());
+    const f = re => c.findIndex(x=>re.test(x));
+    const si=f(/serie/); col = {emp:f(/empresa/), per:f(/persona|asignad|cargo/), marca:f(/marca/), serie:si, fven:f(/venc/), base:f(/base|yacim|sector/)};
+    col.fcal = c.findIndex((x,i)=>/fecha|calib/.test(x) && i!==col.fven); if(col.fcal<0) col.fcal = (c[si+1]===''?si+1:-1); }
+  const addBA = $('#imp-ba').checked, seen = new Set(), lm = latestMap();
+  return lines.map(l=>{
+    const c = l.split('\t'), g = i => i>=0 ? (c[i]||'').trim() : '';
+    let serie = g(col.serie).replace(/\s+/g,'').toUpperCase();
+    if(addBA && /^\d{8}$/.test(serie)) serie = 'BA'+serie;
+    let persona = g(col.per).replace(/\s+/g,' ');
+    if(/^sin asignar$/i.test(persona)) persona = '';
+    const mraw = g(col.marca), mod = (mraw.match(/ARA\s*\d+/i)||[''])[0].toUpperCase().replace(/ARA\s*/,'ARA ');
+    const r = {serie, persona, base:g(col.base).toUpperCase(), marca:normMarca(mraw), modelo:mod, empresa:g(col.emp), fecha:parseFecha(g(col.fcal)), proxima:parseFecha(g(col.fven)), warn:[], skip:false, ciclo:+$('#imp-cyc').value||1};
+    if(!serie){ r.skip=true; r.warn.push('sin N° de serie'); }
+    else if(seen.has(serie)){ r.skip=true; r.warn.push('repetido en la planilla'); }
+    else if(lm[serie]){ r.skip=true; r.warn.push('ya está en el registro'); }
+    seen.add(serie);
+    if(serie && !/^BA\d{8}$/.test(serie)) r.warn.push(/^BA\d{9}$/.test(serie)?'serie con un dígito de más, revisar':'formato de serie distinto, revisar');
+    if(!r.base) r.warn.push('sin base');
+    if(!r.fecha) r.warn.push('fecha de calibración inválida');
+    if(!r.proxima){ if(r.fecha){ r.proxima=addDays(r.fecha,180); r.warn.push('vencimiento calculado a 180 días'); } else { r.skip=true; r.warn.push('sin vencimiento'); } }
+    if(!r.fecha && r.proxima) r.fecha = addDays(r.proxima,-180);
+    if(/momentaneo|relevo|x envio|hasta/i.test(persona)) r.warn.push('asignación provisoria / texto a depurar');
+    return r;
+  });
+}
+function renderImp(){
+  const ok = impRows.filter(r=>!r.skip), M=maxCal(), A=avDias();
+  const venc = ok.filter(r=>daysTo(r.proxima)<0).length, av = ok.filter(r=>{const d=daysTo(r.proxima);return d>=0&&d<=A;}).length, d30 = ok.filter(r=>{const d=daysTo(r.proxima);return d>=0&&d<=30;}).length;
+  const bases = {}; ok.forEach(r=>bases[r.base||'—']=(bases[r.base||'—']||0)+1);
+  $('#imp-prev').innerHTML = `<div class="imp-sum">
+      <span class="badge b-info">${ok.length} a importar</span>${impRows.length-ok.length?`<span class="badge b-gray">${impRows.length-ok.length} omitidos</span>`:''}
+      ${Object.entries(bases).map(([b,n])=>`<span class="base-tag">${esc(b)}: ${n}</span>`).join('')}
+      ${venc?`<span class="badge b-bad">${venc} vencidos</span>`:''}${av?`<span class="badge b-bad">${av} vencen en ${A} días</span>`:''}${d30?`<span class="badge b-warn">${d30} vencen en 30 días</span>`:''}
+      <span class="badge b-warn">${impRows.filter(r=>r.warn.length&&!r.skip).length} con observaciones</span></div>
+    <div class="tw" style="max-height:46vh;overflow:auto"><table class="t"><thead><tr><th>N° de serie</th><th>Asignado a</th><th>Base</th><th>Marca</th><th>Calibrado</th><th>Vence</th><th>Días</th><th>Calib. N°</th><th>Observaciones</th></tr></thead><tbody>
+    ${impRows.map((r,i)=>{ const d=daysTo(r.proxima); return `<tr class="${r.skip?'skip':r.warn.length?'warn':''}">
+      <td><input class="in mono" data-ii="${i}" data-k="serie" value="${esc(r.serie)}" style="width:130px" ${r.skip?'disabled':''}></td>
+      <td><input class="in" data-ii="${i}" data-k="persona" value="${esc(r.persona)}" placeholder="Sin asignar" style="min-width:200px" ${r.skip?'disabled':''}></td>
+      <td><input class="in" data-ii="${i}" data-k="base" value="${esc(r.base)}" list="dl-bases" style="width:84px;text-transform:uppercase" ${r.skip?'disabled':''}></td><td class="hint">${esc(r.marca)}</td>
+      <td class="num">${fmt(r.fecha)}</td><td class="num"><b>${fmt(r.proxima)}</b></td>
+      <td class="dias ${d<0||d<=A?'d-bad':d<=30?'d-warn':'d-ok'}">${r.proxima?d:''}</td>
+      <td><select class="in" data-ii="${i}" data-k="ciclo" style="width:64px" ${r.skip?'disabled':''}>${Array.from({length:M},(_,k)=>`<option value="${k+1}" ${r.ciclo===k+1?'selected':''}>${k+1}/${M}</option>`).join('')}</select></td>
+      <td class="wtxt">${r.warn.map(esc).join(' · ')}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="bar" style="margin-top:10px"><span class="hint">Los equipos se cargan como <b>importados</b>: entran al control de vencimientos y se les puede imprimir la etiqueta con QR. El próximo certificado ya lo emite la app.</span><span class="sp"></span>
+      <button class="btn acc" id="imp-go" ${ok.length?'':'disabled'}>Importar ${ok.length} equipos</button></div>`;
+}
+$('#v-imp').onclick = ()=>{ $('#imp-cyc').innerHTML = Array.from({length:maxCal()},(_,k)=>`<option value="${k+1}">${k+1}</option>`).join(''); $('#imp-modal').classList.add('on'); $('#imp-ta').focus(); };
+$('#imp-close').onclick = ()=>$('#imp-modal').classList.remove('on');
+$('#imp-parse').onclick = ()=>{ impRows = parseInventario($('#imp-ta').value); if(!impRows.length) return toast('No se encontraron filas'); renderImp(); };
+$('#imp-cyc').onchange = e=>{ impRows.forEach(r=>r.ciclo=+e.target.value); if(impRows.length) renderImp(); };
+$('#imp-prev').addEventListener('change', e=>{ const t=e.target, i=t.dataset.ii; if(i===undefined) return; const r=impRows[i];
+  if(t.dataset.k==='ciclo') r.ciclo=+t.value; else if(t.dataset.k==='serie') r.serie=t.value.replace(/\s+/g,'').toUpperCase(); else if(t.dataset.k==='base') r.base=t.value.trim().toUpperCase(); else r[t.dataset.k]=t.value.trim(); });
+$('#imp-prev').addEventListener('click', async e=>{ if(e.target.id!=='imp-go') return;
+  const ok = impRows.filter(r=>!r.skip && r.serie), L=db.last, ts=Date.now();
+  const nuevos = ok.map((r,i)=>({ id:`imp-${ts}-${i}`, ts:ts+i, tok:token(), importado:true, nro:`INV-${r.serie}`, ciclo:r.ciclo,
+    cliente:/petrosar/i.test(r.empresa)?'PETROSAR':(r.empresa||L.cliente), equipo:L.equipo, marca:r.marca||L.marca, modelo:r.modelo||L.modelo,
+    serie:r.serie, idEq:'', persona:r.persona, base:r.base, fecha:r.fecha, proxima:r.proxima, dias:Math.round((pd(r.proxima)-pd(r.fecha))/864e5),
+    tecnico:'', cero:'', resultado:'PASÓ', obs:'Importado desde inventario', emitido:today(), sensores:structuredClone(L.sensores), aviso:'' }));
+  db.certs.push(...nuevos);
+  const ar = nuevos.flatMap(c=>setAsig(c.serie, c.persona, c.base, c.fecha, 'importación'));
+  e.target.disabled = true;
+  try{ await saveCerts(nuevos); await saveAsig(ar); }catch(_){ toast('Error guardando en la nube'); }
+  $('#imp-modal').classList.remove('on'); impRows=[]; $('#imp-prev').innerHTML=''; $('#imp-ta').value=''; refresh(); showView('venc');
+  toast(`${nuevos.length} equipos importados`);
+});
+
+/* =========================================================
+   REGISTRO
+   ========================================================= */
+let sel = new Set();
+function regRows(){
+  const lm = latestMap(), q = $('#r-q').value.trim().toLowerCase(), f = $('#r-est').value;
+  return db.certs.map(c=>({c,e:estado(c,lm)}))
+    .filter(({c,e})=>(!f||e.k===f||(f==='pv'&&e.k==='av')) && (!q || [c.nro,c.serie,c.idEq,c.modelo,c.marca,c.tecnico,c.persona,c.base].join(' ').toLowerCase().includes(q)))
+    .sort((a,b)=> b.c.fecha.localeCompare(a.c.fecha) || b.c.ts-a.c.ts);
+}
+function renderReg(){
+  const rows = regRows();
+  $('#t-reg tbody').innerHTML = rows.length ? rows.map(({c,e})=>`<tr>
+    <td><input type="checkbox" data-sel="${c.id}" ${sel.has(c.id)?'checked':''}></td>
+    <td class="mono">${esc(c.nro)}</td><td class="mono"><b>${esc(c.serie)}</b></td><td>${c.persona?esc(c.persona):'<span class="hint">—</span>'}${c.base?' <span class="base-tag">'+esc(c.base)+'</span>':''}</td>
+    <td class="cyc-t" style="${isLast(c)?'color:var(--bad)':''}">${c.ciclo||1}/${maxCal()}</td>
+    <td>${esc(c.marca)} ${esc(c.modelo)}</td><td>${c.sensores.map(s=>sub(s.sensor.split(' ')[0])).join(', ')}</td>
+    <td class="num">${fmt(c.fecha)}</td><td class="num">${fmt(c.proxima)}</td>
+    <td><span class="badge ${c.resultado==='PASÓ'?'b-ok':'b-bad'}">${esc(c.resultado)}</span></td>
+    <td><span class="badge ${e.cl}">${e.t}</span></td><td>${esc(c.tecnico)}</td>
+    <td style="white-space:nowrap"><button class="btn sm" data-ver="${c.id}">Ver</button> <button class="btn sm ghost danger" data-rm="${c.id}" title="Eliminar">✕</button></td></tr>`).join('')
+    : `<tr><td colspan="13" class="empty">${db.certs.length?'Sin resultados para el filtro.':'Todavía no hay certificados. Generá el primero en «Nueva calibración».'}</td></tr>`;
+  updSel();
+}
+function updSel(){ const n=sel.size; $('#r-sel').textContent=`${n} seleccionado${n===1?'':'s'}`; ['#r-cert','#r-lbl','#r-pdf'].forEach(s=>$(s).disabled=!n); }
+const selCerts = () => db.certs.filter(c=>sel.has(c.id));
+$('#r-q').oninput=renderReg; $('#r-est').onchange=renderReg;
+$('#r-all').onchange=e=>{ regRows().forEach(({c})=> e.target.checked?sel.add(c.id):sel.delete(c.id)); renderReg(); };
+$('#t-reg').addEventListener('change',e=>{ const id=e.target.dataset.sel; if(id){ e.target.checked?sel.add(id):sel.delete(id); updSel(); }});
+$('#t-reg').addEventListener('click',async e=>{
+  const v=e.target.closest('[data-ver]'), r=e.target.closest('[data-rm]');
+  if(v) openModal(v.dataset.ver);
+  if(r){ const c=db.certs.find(x=>x.id===r.dataset.rm); if(confirm(`¿Eliminar el certificado ${c.nro} (S/N ${c.serie})?`)){
+    db.certs=db.certs.filter(x=>x!==c); sel.delete(c.id);
+    try{ await deleteCert(c.id); }catch(_){ toast('No se pudo eliminar en la nube'); } refresh(); } }
+});
+$('#r-cert').onclick=()=>printDocs(selCerts(),'cert');
+$('#r-lbl').onclick=()=>printDocs(selCerts(),'lbl');
+$('#r-pdf').onclick=()=>pdfZip(selCerts());
+
+let mc=null;
+function openModal(id){ mc=db.certs.find(c=>c.id===id); $('#m-title').textContent=`${mc.importado?'Equipo importado':mc.nro} · S/N ${mc.serie}`; $('#modal').classList.add('on');
+  $('#m-cert').disabled = $('#m-pdf').disabled = !!mc.importado; renderAsgBox(); previewInto($('#m-prev'),mc); }
+function renderAsgBox(){
+  const cur=curAsig(mc.serie), h=histAsig(mc.serie).slice().reverse();
+  $('#m-asg').innerHTML = `<h3>Asignación del equipo</h3>
+    <div class="bar" style="align-items:flex-end">
+      <label class="f" style="flex:1;min-width:180px"><span>Asignado a</span><input class="in" id="ma-per" list="dl-personas" value="${esc(cur&&cur.persona||'')}" placeholder="Sin asignar / pañol"></label>
+      <label class="f" style="width:110px"><span>Base</span><input class="in" id="ma-base" list="dl-bases" value="${esc(cur&&cur.base||'')}" style="text-transform:uppercase"></label>
+      <label class="f" style="width:150px"><span>Desde</span><input class="in" type="date" id="ma-fecha" value="${today()}"></label>
+      <button class="btn pri sm" id="ma-save" ${mc.baja?'disabled':''}>Guardar asignación</button>
+    </div>
+    ${h.length?`<ul class="asg-hist">${h.map(a=>`<li><b>${esc(a.persona||'Sin asignar')}</b>${a.base?' · '+esc(a.base):''} — desde ${fmt(a.desde)}${a.hasta?` hasta ${fmt(a.hasta)}${a.motivo?' ('+esc(a.motivo)+')':''}`:' <span class="badge b-ok">actual</span>'}</li>`).join('')}</ul>`:'<p class="hint" style="margin:6px 0 0">Sin historial de asignación.</p>'}`;
+  $('#ma-save').onclick = async()=>{ const rows=setAsig(mc.serie, $('#ma-per').value, $('#ma-base').value, $('#ma-fecha').value||today(), 'reasignación');
+    if(!rows.length) return toast('Sin cambios');
+    try{ await saveAsig(rows); toast('Asignación guardada'); }catch(_){ toast('No se pudo guardar en la nube'); } renderAsgBox(); refresh(); };
+}
+$('#m-close').onclick=()=>$('#modal').classList.remove('on');
+$('#modal').onclick=e=>{ if(e.target.id==='modal') $('#modal').classList.remove('on'); };
+$('#m-cert').onclick=()=>{ if(mc.importado) return toast('Equipo importado: el certificado original está fuera del sistema'); printDocs([mc],'cert'); };
+$('#m-lbl').onclick=()=>printDocs([mc],'lbl');
+$('#m-pdf').onclick=()=>pdfZip([mc]);
+function recal(){
+  if(usedCal(mc.serie)>=maxCal()) return toast(`S/N ${mc.serie} ya tiene ${maxCal()} calibraciones: debe descartarse`);
+  db.last = {...db.last, cliente:mc.cliente,equipo:mc.equipo,marca:mc.marca,modelo:mc.modelo,dias:mc.dias,tecnico:mc.tecnico,sensores:structuredClone(mc.sensores)};
+  const a=curAsig(mc.serie); equipos=[{serie:mc.serie,idEq:mc.idEq||'',persona:a?a.persona:'',base:a?a.base||'':'',cero:'0',resultado:'PASÓ',obs:''}]; fillForm();
+  $('#modal').classList.remove('on'); showView('nueva'); toast(`Cargado S/N ${mc.serie} para recalibrar`);
+}
+$('#m-recal').onclick=recal;
+
+/* =========================================================
+   CONFIGURACIÓN
+   ========================================================= */
+function renderCfg(){
+  const C=db.cfg, yr=new Date().getFullYear();
+  $('#c-cert').value=C.certSize; $('#c-lbl').value=C.lblSize; $('#c-qr').checked=!!C.lblQR; $('#c-emp').value=C.empresa; $('#c-sec').value=C.sector; $('#c-pre').value=C.prefijo;
+  $('#c-max').value=maxCal(); $('#c-url').value=C.baseUrl; $('#c-url').placeholder=baseUrl();
+  $('#c-seq').value=(db.seq[yr]||0)+1;
+  $('#t-tec tbody').innerHTML = C.tecnicos.map((t,i)=>`<tr><td><input class="in" data-ti="${i}" value="${esc(t.nombre)}"></td>
+    <td><div class="bar">${t.firma?`<img class="sigprev" src="${t.firma}" alt="">`:'<span class="hint">sin firma</span>'}
+      <label class="btn sm">Cargar<input type="file" accept="image/*" data-tf="${i}" hidden></label>${t.firma?`<button class="btn sm ghost" data-tx="${i}">Quitar</button>`:''}</div></td>
+    <td>${C.tecnicos.length>1?`<button class="btn sm ghost danger" data-td="${i}">✕</button>`:''}</td></tr>`).join('');
+}
+$('#c-cert').onchange=e=>{db.cfg.certSize=e.target.value;saveCfg();};
+$('#c-lbl').onchange=e=>{db.cfg.lblSize=e.target.value;saveCfg();};
+$('#c-qr').onchange=e=>{db.cfg.lblQR=e.target.checked;saveCfg();};
+$('#c-max').onchange=e=>{ const n=Math.max(1,Math.min(20,+e.target.value||4)); db.cfg.maxCal=n; saveCfg(); refresh(); renderEq(); toast(`Máximo ${n} calibraciones por equipo`); };
+$('#c-url').onchange=e=>{db.cfg.baseUrl=e.target.value.trim();saveCfg();toast('URL del QR actualizada');};
+$('#c-emp').onchange=e=>{db.cfg.empresa=e.target.value.trim();saveCfg();};
+$('#c-sec').onchange=e=>{db.cfg.sector=e.target.value.trim();saveCfg();};
+$('#c-pre').onchange=e=>{db.cfg.prefijo=e.target.value.trim().toUpperCase()||'CAL';saveCfg();renderCfg();};
+$('#c-seq').onchange=e=>{const n=+e.target.value; if(n>=1){db.seq[new Date().getFullYear()]=n-1;saveCfg();toast('Numeración actualizada');}};
+$('#c-addtec').onclick=()=>{db.cfg.tecnicos.push({nombre:'NUEVO TÉCNICO',firma:''});saveCfg();renderCfg();fillTecSelect($('#f-tecnico').value);};
+$('#t-tec').addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.ti!==undefined){ db.cfg.tecnicos[t.dataset.ti].nombre=t.value.trim().toUpperCase(); saveCfg(); fillTecSelect($('#f-tecnico').value); renderCfg(); }
+  if(t.dataset.tf!==undefined && t.files[0]){
+    const fr=new FileReader(); fr.onload=()=>{ const im=new Image(); im.onload=()=>{
+      const k=Math.min(1,400/im.width), cv=document.createElement('canvas'); cv.width=im.width*k; cv.height=im.height*k;
+      cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height); db.cfg.tecnicos[t.dataset.tf].firma=cv.toDataURL('image/png'); saveCfg(); renderCfg(); toast('Firma cargada'); };
+      im.src=fr.result; }; fr.readAsDataURL(t.files[0]);
+  }
+});
+$('#t-tec').addEventListener('click',e=>{
+  const d=e.target.closest('[data-td]'), x=e.target.closest('[data-tx]');
+  if(d){ db.cfg.tecnicos.splice(+d.dataset.td,1); saveCfg(); renderCfg(); fillTecSelect(); }
+  if(x){ db.cfg.tecnicos[+x.dataset.tx].firma=''; saveCfg(); renderCfg(); }
+});
+$('#c-exp').onclick=()=>dl(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}),`respaldo_calibraciones_${today()}.json`);
+$('#c-imp').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const fr=new FileReader();
+  fr.onload=async()=>{ try{ const d=JSON.parse(fr.result); if(!Array.isArray(d.certs)) throw 0; db=normalize(d); await saveCerts(db.certs); saveCfg(); refresh(); fillForm(); renderCfg(); toast(`Respaldo importado: ${d.certs.length} certificados`);}catch(_){ toast('El archivo no es un respaldo válido o falló la carga'); } };
+  fr.readAsText(f); e.target.value=''; };
+$('#c-csv').onclick=()=>{
+  const lm=latestMap(), H=['N° certificado','N° serie','Asignado (al emitir)','Base','Asignado actual','Calibración N°','Cliente','Equipo','Marca','Modelo','Sensores','Fecha calibración','Próxima calibración','Resultado','Estado','Técnico','Observaciones','Link'];
+  const L=db.certs.map(c=>[c.nro,c.serie,c.persona||'',c.base||'',curAsig(c.serie)?.persona||'',`${c.ciclo||1}/${maxCal()}`,c.cliente,c.equipo,c.marca,c.modelo,c.sensores.map(s=>s.sensor).join(' / '),fmt(c.fecha),fmt(c.proxima),c.resultado,estado(c,lm).t,c.tecnico,c.obs,certUrl(c)]);
+  const csv=[H,...L].map(r=>r.map(x=>`"${String(x??'').replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  dl(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}),`registro_calibraciones_${today()}.csv`);
+};
+
+/* =========================================================
+   VISOR PÚBLICO (lo que abre el QR):  ?v=<token>
+   ========================================================= */
+async function showViewer(tok){
+  document.body.classList.add('viewer-mode');
+  const box = $('#viewer'); box.hidden = false;
+  box.innerHTML = '<div class="vw-card"><div class="empty">Buscando certificado…</div></div>';
+  let c=null, latest=null;
+  try{
+    if(REMOTE){
+      const r = await sb(`calib_certificados?token=eq.${encodeURIComponent(tok)}&select=token,data,aviso_enviado,aviso_reposicion`);
+      if(r && r[0]){ c = fromRow(r[0]);
+        const o = await sb(`calib_certificados?serie=eq.${encodeURIComponent(c.serie)}&select=token,data,aviso_enviado&order=fecha.desc`);
+        latest = o.map(fromRow).sort((a,b)=>b.fecha.localeCompare(a.fecha)||b.ts-a.ts)[0]; }
+      const cf = await sb('calib_config?id=eq.cfg&select=data'); if(cf&&cf[0]) db = normalize({...cf[0].data, certs:[]});
+    } else {
+      c = db.certs.find(x=>x.tok===tok); if(c) latest = latestMap()[c.serie.toUpperCase()];
+    }
+  }catch(e){ box.innerHTML = '<div class="vw-card"><div class="empty">No se pudo consultar el certificado. Revisá la conexión.</div></div>'; return; }
+  if(!c){ box.innerHTML = '<div class="vw-card"><div class="empty"><b>Certificado no encontrado.</b><br>El código puede ser inválido o el certificado fue dado de baja.</div></div>'; return; }
+  const d = daysTo(c.proxima), rep = latest && latest.tok!==c.tok;
+  const st = rep ? {cl:'vw-gray', t:'REEMPLAZADO', s:`Existe un certificado más nuevo: ${latest.nro} (vence ${fmt(latest.proxima)})`}
+    : c.baja ? {cl:'vw-gray', t:'DADO DE BAJA', s:`Equipo retirado de servicio el ${fmt(c.baja)}`}
+    : d<0 && isLast(c) ? {cl:'vw-bad', t:'VENCIDO · DESCARTAR', s:`Completó sus ${maxCal()} calibraciones. Venció el ${fmt(c.proxima)}: retirar de servicio`}
+    : c.resultado!=='PASÓ' ? {cl:'vw-bad', t:'NO APTO', s:'El equipo no pasó la calibración'}
+    : d<0 ? {cl:'vw-bad', t:'VENCIDO', s:`Venció el ${fmt(c.proxima)} (hace ${-d} días)`}
+    : d<=avDias() ? {cl:'vw-warn', t:'VIGENTE · POR VENCER', s:`Vence el ${fmt(c.proxima)} (en ${d} días)`}
+    : {cl:'vw-ok', t:'VIGENTE', s:`Válido hasta el ${fmt(c.proxima)} (${d} días)`};
+  box.innerHTML = `<div class="vw-card">
+    <div class="vw-head"><img src="${LOGO}" alt=""><div><b>${esc(db.cfg.empresa)}</b><span>Verificación de certificado de calibración</span></div></div>
+    <div class="vw-st ${st.cl}"><b>${st.t}</b><span>${esc(st.s)}</span></div>
+    <dl class="vw-dl">
+      <dt>Certificado</dt><dd class="mono">${c.importado?'—':esc(c.nro)}</dd>
+      <dt>Equipo</dt><dd>${sub(c.equipo)}</dd>
+      <dt>Marca / modelo</dt><dd>${esc(c.marca)} ${esc(c.modelo)}</dd>
+      <dt>N° de serie</dt><dd class="mono"><b>${esc(c.serie)}</b></dd>
+      ${c.idEq?`<dt>ID del equipo</dt><dd>${esc(c.idEq)}</dd>`:''}
+      <dt>Calibrado</dt><dd>${fmt(c.fecha)}${c.tecnico?' · '+esc(c.tecnico):''}</dd>
+      <dt>Próxima calibración</dt><dd><b>${fmt(c.proxima)}</b></dd>
+      <dt>Resultado</dt><dd><b class="${c.resultado==='PASÓ'?'res-ok':'res-bad'}">${esc(c.resultado)}</b></dd>
+      <dt>Vida útil</dt><dd>Calibración <b>${c.ciclo||1} de ${maxCal()}</b>${isLast(c)?' · <b class="res-bad">última: descartar al vencimiento</b>':''}</dd>
+    </dl>
+    ${c.importado?'<p class="hint" style="margin:12px 0 0">Calibración registrada desde el inventario anterior: el certificado original no está cargado en el sistema.</p>':`<div class="bar" style="margin:12px 0"><button class="btn pri" id="vw-pdf">Descargar certificado (PDF)</button><button class="btn" id="vw-print">Imprimir</button></div>
+    <div class="vw-doc" id="vw-doc"></div>`}
+  </div>`;
+  if(c.importado) return;
+  const doc = $('#vw-doc'), W = 210*3.78, sc = Math.min(1, (doc.clientWidth||600)/W);
+  doc.innerHTML = `<div style="width:${W*sc}px;height:${148*3.78*sc}px"><div class="prev-scale" style="transform:scale(${sc})">${certHTML(c,true)}</div></div>`;
+  $('#vw-pdf').onclick = async()=>{ if(!window.html2canvas) return toast('No se pudo generar el PDF'); const f = await certPdf(c); dl(f.blob,f.name); };
+  $('#vw-print').onclick = ()=>printDocs([c],'cert');
+}
+
+/* ---------- general ---------- */
+function kpis(){
+  const act=Object.values(latestMap());
+  $('#k-certs').textContent=db.certs.length; $('#k-eq').textContent=act.filter(c=>!c.baja).length;
+  $('#k-pv').textContent=act.filter(c=>{const d=daysTo(c.proxima);return !c.baja&&d>=0&&d<=30;}).length;
+  $('#k-v').textContent=act.filter(c=>!c.baja&&daysTo(c.proxima)<0).length;
+  $('#k-rep').textContent=act.filter(c=>!c.baja&&isLast(c)).length;
+}
+function refresh(){ kpis(); renderReg(); renderVenc(); fillDatalists(); }
+function showView(v){ $$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v)); $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v)); if(v==='config') renderCfg(); if(v==='registro') renderReg(); if(v==='venc') renderVenc(); }
+$$('.tab').forEach(t=>t.onclick=()=>showView(t.dataset.v));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('#modal').classList.remove('on'); $('#imp-modal').classList.remove('on'); } });
+
+(async function init(){
+  loadLocal();
+  const tok = new URLSearchParams(location.search).get('v');
+  if(tok) return showViewer(tok);
+  if(REMOTE){ try{ await loadRemote(); saveLocal(); }catch(e){ toast('Sin conexión con la base: se muestran datos guardados en este equipo'); } }
+  fillForm(); refresh();
+  if(location.hash==='#vencimientos') showView('venc');
+})();
+</script>
+</body>
+</html>
