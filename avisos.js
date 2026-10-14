@@ -5,7 +5,8 @@
 //  2) equipos que recibieron su ÚLTIMA calibración permitida (por defecto 4): hay que
 //     comprar/reponer el equipo → marca aviso_reposicion
 // Los equipos dados de baja no se informan.
-// Prueba sin enviar:  /api/avisos?dry=1   (con header Authorization: Bearer <CRON_SECRET>)
+// Prueba desde el navegador:  /api/avisos?key=<CRON_SECRET>&dry=1  (muestra qué enviaría, sin enviar)
+//                             /api/avisos?key=<CRON_SECRET>        (envía de verdad)
 const nodemailer = require('nodemailer');
 
 const env = k => (process.env[k] || '').trim();
@@ -14,7 +15,9 @@ const fmt = s => (s ? s.split('-').reverse().join('/') : '');
 
 module.exports = async (req, res) => {
   const secret = env('CRON_SECRET');
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ error: 'No autorizado' });
+  // Autorización: header de Vercel Cron, o ?key=CRON_SECRET para probar desde el navegador
+  const q = req.query || {};
+  if (secret && req.headers.authorization !== `Bearer ${secret}` && q.key !== secret) return res.status(401).json({ error: 'No autorizado' });
 
   const SB = env('SUPABASE_URL'), KEY = env('SUPABASE_SERVICE_KEY');
   const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
