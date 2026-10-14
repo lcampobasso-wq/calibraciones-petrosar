@@ -234,6 +234,16 @@ body.viewer-mode>header,body.viewer-mode>main{display:none}
 tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
 .wtxt{color:var(--warn);font-size:11px;font-weight:600}
 
+/* hoja A4 de etiquetas */
+.sheet{width:210mm;height:297mm;position:relative}
+.lbl-cell{position:absolute;display:flex}
+.lbl-cell.cut{outline:.1mm dashed #bbb;outline-offset:.9mm}
+.grid-prev{display:grid;gap:2px;background:#e2e8f0;padding:6px;border-radius:6px;width:max-content;max-width:100%}
+.grid-prev i{display:block;width:16px;height:11px;border-radius:2px;background:#fff;border:1px solid #cbd5e1;cursor:pointer}
+.grid-prev i.u{background:#cbd5e1;border-color:#cbd5e1}
+.grid-prev i.n{background:var(--amber);border-color:#c98612}
+.lq-row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+
 #print-area{display:none}
 #pdf-stage{position:fixed;left:-10000px;top:0}
 @media print{
@@ -321,7 +331,7 @@ tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
     <h3>Lote generado <span class="badge b-ok" id="lote-n"></span><span class="sp"></span></h3>
     <div class="bar">
       <button class="btn pri" id="lote-cert">Imprimir certificados</button>
-      <button class="btn pri" id="lote-lbl">Imprimir etiquetas</button>
+      <button class="btn pri" id="lote-lbl">Imprimir etiquetas ahora</button>
       <button class="btn" id="lote-pdf">Descargar PDFs (uno por equipo)</button>
       <span class="sp"></span>
       <span class="hint">Para PDF único: Imprimir → destino «Guardar como PDF».</span>
@@ -376,6 +386,7 @@ tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
     <h3>Control de vencimientos por equipo <span class="sp"></span>
       <select class="in" id="v-base" style="max-width:130px;text-transform:none;letter-spacing:0;font-weight:400"><option value="">Todas las bases</option></select>
       <input class="in" id="v-q" placeholder="Buscar S/N, persona…" style="max-width:200px;text-transform:none;letter-spacing:0;font-weight:400">
+      <button class="btn sm acc" id="v-pend" style="text-transform:none;letter-spacing:0">Etiquetas pendientes <span class="badge b-gray" id="v-pend-n">0</span></button>
       <button class="btn sm" id="v-imp" style="text-transform:none;letter-spacing:0">Importar inventario</button></h3>
     <div id="v-need"></div>
     <div class="tw"><table class="t" id="t-venc">
@@ -403,6 +414,15 @@ tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
           <option value="60x40">60 × 40 mm</option>
           <option value="50x25">50 × 25 mm</option></select></label>
       </div>
+      <div class="g" style="grid-template-columns:1fr 1fr;margin-top:8px">
+        <label class="f"><span>Papel de etiquetas</span><select class="in" id="c-media">
+          <option value="a4">Hoja A4 autoadhesiva (grilla)</option>
+          <option value="rollo">Rollo / una etiqueta por página</option></select></label>
+        <label class="f"><span>Separación para corte</span><select class="in" id="c-gap">
+          <option value="2">2 mm entre etiquetas</option>
+          <option value="0">Sin separación (máximo por hoja)</option></select></label>
+      </div>
+      <p class="hint" id="c-cap" style="margin:4px 0 0"></p>
       <label class="bar" style="margin-top:8px;gap:6px;cursor:pointer"><input type="checkbox" id="c-qr"> <span>Incluir código QR en la etiqueta</span></label>
       <p class="hint">En el diálogo de impresión elegí el mismo tamaño de papel y márgenes «Ninguno». Para la etiqueta, configurá en el driver de la impresora el tamaño exacto del rótulo.</p>
       <h3 style="margin-top:14px">Emisor del certificado</h3>
@@ -442,6 +462,19 @@ tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
     <button class="btn sm ghost" id="m-close">✕</button></div>
   <div class="card" id="m-asg" style="margin:0 0 10px;background:#fafbfc"></div>
   <div class="prev-wrap" id="m-prev"></div>
+</div></div>
+
+<div class="modal" id="lbl-modal"><div class="box" style="max-width:640px">
+  <div class="bar" style="margin-bottom:8px"><b id="lq-title">Imprimir etiquetas</b><span class="sp"></span><button class="btn sm ghost" id="lq-close">✕</button></div>
+  <div class="lq-row">
+    <div>
+      <label class="f" style="width:200px"><span>Empezar en la posición</span><input class="in num" type="number" min="1" id="lq-start"></label>
+      <p class="hint" style="margin:6px 0 0;max-width:220px">Tocá un casillero de la hoja para elegir desde dónde imprimir. En gris, lo ya usado.</p>
+      <p class="hint" id="lq-info" style="margin:10px 0 0;max-width:220px"></p>
+    </div>
+    <div id="lq-grid"></div>
+  </div>
+  <div class="bar" style="margin-top:12px"><span class="hint">Imprimí al 100 % («Tamaño real»), papel A4, márgenes «Ninguno».</span><span class="sp"></span><button class="btn pri" id="lq-go">Imprimir</button></div>
 </div></div>
 
 <div class="modal" id="imp-modal"><div class="box" style="max-width:1100px">
@@ -493,7 +526,7 @@ const DEF_URL = 'https://calibraciones-petrosar.vercel.app/';
 const DEF = {
   certs: [], seq: {}, asig: [],
   cfg: { v:2, certSize:'A4', lblSize:'30x20', lblQR:true, baseUrl:'', empresa:'PETROSAR S.A.', sector:'Servicio Técnico', prefijo:'CAL',
-         tecnicos:[{nombre:'PABLO MORALES', firma:''}], avisos:{dest:'pmorales@petrosar.com', dias:5}, maxCal:4, bases:['AG','CD','RESERO','VH'] },
+         tecnicos:[{nombre:'PABLO MORALES', firma:''}], avisos:{dest:'pmorales@petrosar.com', dias:5}, maxCal:4, lblMedia:'a4', lblGap:2, lblNext:1, bases:['AG','CD','RESERO','VH'] },
   last: { cliente:'PETROSAR', equipo:'DETECTOR MONOGAS H2S', marca:'ION SCIENCE', modelo:'ARA 100', dias:180, tecnico:'PABLO MORALES',
           sensores:[{sensor:'H2S (ppm)',a1:'10',a2:'15',twa:'10',stel:'15',conc:'25 ppm',cil:'',prov:'GASCO',tol:'±5 ppm'}] }
 };
@@ -593,7 +626,7 @@ function estado(c, lm){
   const d = daysTo(c.proxima);
   if(d<0 && isLast(c)) return {k:'ven',t:`Vencido · DESCARTAR`,cl:'b-bad'};
   if(d<0) return {k:'ven',t:`Vencido (${-d} d)`,cl:'b-bad'};
-  if(d<=avDias()) return {k:'av',t:`Vence en ${d} d`,cl:'b-bad'};
+  if(d<=avDias()) return {k:'av',t:d===0?'Vence hoy':`Vence en ${d} d`,cl:'b-bad'};
   if(d<=30) return {k:'pv',t:`Vence en ${d} d`,cl:'b-warn'};
   return {k:'vig',t:'Vigente',cl:'b-ok'};
 }
@@ -674,7 +707,58 @@ function labelHTML(c){
 }
 
 /* ---------- imprimir / PDF ---------- */
+/* ---- grilla A4 de etiquetas ---- */
+function sheetGrid(){
+  const [w,h] = LBL[db.cfg.lblSize]||LBL['30x20'], g = Number(db.cfg.lblGap)||0, M = 6;
+  const cols = Math.floor((210-2*M+g)/(w+g)), rows = Math.floor((297-2*M+g)/(h+g));
+  const ox = (210-(cols*w+(cols-1)*g))/2, oy = (297-(rows*h+(rows-1)*g))/2;
+  return {w,h,g,cols,rows,cap:cols*rows,ox,oy};
+}
+function sheetsHTML(certs, start){
+  const G = sheetGrid(); let pos = start-1, html = '', cur = '';
+  const flush = () => { html += `<div class="page sheet">${cur}</div>`; cur=''; };
+  certs.forEach(c=>{
+    if(pos>=G.cap){ flush(); pos=0; }
+    const r = Math.floor(pos/G.cols), k = pos%G.cols;
+    cur += labelHTML(c).replace('class="page lbl-page"', `class="lbl-cell ${G.g?'cut':''}" style="left:${(G.ox+k*(G.w+G.g)).toFixed(2)}mm;top:${(G.oy+r*(G.h+G.g)).toFixed(2)}mm;`).replace(/style="left:([^"]*)" style="/,'style="left:$1');
+    pos++;
+  });
+  if(cur) flush();
+  return {html, end:pos};
+}
+let lqCerts = [];
+function openLabelQueue(certs, title){
+  lqCerts = certs; const G = sheetGrid();
+  let st = Number(db.cfg.lblNext)||1; if(st>G.cap) st=1;
+  $('#lq-title').textContent = title || `Imprimir ${certs.length} etiqueta${certs.length>1?'s':''}`;
+  $('#lq-start').max = G.cap; $('#lq-start').value = st; drawLq(); $('#lbl-modal').classList.add('on');
+}
+function drawLq(){
+  const G = sheetGrid(), st = Math.max(1, Math.min(G.cap, +$('#lq-start').value||1)), n = lqCerts.length;
+  const sheets = Math.ceil((st-1+n)/G.cap);
+  $('#lq-grid').innerHTML = `<div class="grid-prev" style="grid-template-columns:repeat(${G.cols},16px)">${Array.from({length:G.cap},(_,i)=>`<i data-p="${i+1}" class="${i+1<st?'u':(i+1<st+n?'n':'')}" title="Posición ${i+1}"></i>`).join('')}</div>`;
+  const endPos = (st-1+n) % G.cap;
+  $('#lq-info').innerHTML = `<b>${n}</b> etiqueta${n>1?'s':''} · ${sheets} hoja${sheets>1?'s':''} (${G.cap} por hoja de ${G.cols}×${G.rows}).<br>${endPos? `Quedan <b>${G.cap-endPos}</b> lugares libres en la última hoja: la próxima vez arrancá en la <b>${endPos+1}</b>.` : 'La última hoja queda completa.'}`;
+}
+$('#lq-start').oninput = drawLq;
+$('#lq-grid').addEventListener('click', e=>{ const p=e.target.dataset.p; if(p){ $('#lq-start').value=p; drawLq(); } });
+$('#lq-close').onclick = ()=>$('#lbl-modal').classList.remove('on');
+$('#lq-go').onclick = async ()=>{
+  const G = sheetGrid(), st = Math.max(1, Math.min(G.cap, +$('#lq-start').value||1));
+  const {html, end} = sheetsHTML(lqCerts, st);
+  $('#page-style').textContent = '@page{size:210mm 297mm;margin:0}';
+  $('#print-area').innerHTML = html;
+  db.cfg.lblNext = end>=G.cap ? 1 : end+1; saveCfg();
+  const hoy = today(); lqCerts.forEach(c=>c.lblImp = hoy);
+  $('#lbl-modal').classList.remove('on');
+  try{ await saveCerts(lqCerts); }catch(_){}
+  refresh();
+  setTimeout(()=>window.print(), 150);
+};
+const pendLabels = () => Object.values(latestMap()).filter(c=>!c.baja && !c.lblImp);
+
 function printDocs(certs, kind){
+  if(kind!=='cert' && db.cfg.lblMedia!=='rollo' && certs.length) return openLabelQueue(certs);
   if(kind==='cert'){ const n=certs.length; certs=certs.filter(c=>!c.importado); if(n && !certs.length) return toast('Equipos importados: no tienen certificado emitido por la app'); if(certs.length<n) toast(`Se omiten ${n-certs.length} equipos importados (sin certificado propio)`); }
   if(!certs.length) return;
   const area = $('#print-area');
@@ -685,6 +769,7 @@ function printDocs(certs, kind){
     const [w,h] = LBL[db.cfg.lblSize]||LBL['30x20'];
     $('#page-style').textContent = `@page{size:${w}mm ${h}mm;margin:0}`;
     area.innerHTML = certs.map(labelHTML).join('');
+    const hoy=today(); certs.forEach(c=>c.lblImp=hoy); saveCerts(certs).catch(()=>{}); setTimeout(refresh,500);
   }
   const imgs = [...area.querySelectorAll('img')];
   Promise.all(imgs.map(i=>i.complete?1:new Promise(r=>{i.onload=i.onerror=r;}))).then(()=>setTimeout(()=>window.print(),120));
@@ -916,6 +1001,7 @@ function renderVenc(){
       + pend.slice(0,8).map(c=>{ const a=curAsig(c.serie); return `<div>• <span class="mono">${esc(c.serie)}</span>${a&&a.persona?' ('+esc(a.persona)+')':''} — vence ${fmt(c.proxima)}${isLast(c)?' · <b style="color:var(--bad)">descartar</b>':''}</div>`; }).join('') + (pend.length>8?`<div>… y ${pend.length-8} más</div>`:'')
     : 'Sin vencimientos pendientes de aviso.';
   if(pendRep.length) $('#a-next').innerHTML += `<div style="margin-top:8px;color:#6b21a8"><b>Reposición:</b> ${pendRep.length} equipo${pendRep.length>1?'s':''} en su última calibración — ${pendRep.slice(0,6).map(c=>{ const a=curAsig(c.serie); return esc(a&&a.persona||c.serie); }).join(', ')}${pendRep.length>6?'…':''}</div>`;
+  const pn = pendLabels().length; $('#v-pend-n').textContent = pn; $('#v-pend').classList.toggle('acc', pn>0);
   const nb = all.filter(d=>d<=A).length + act.filter(c=>isLast(c)&&daysTo(c.proxima)>A).length; $('#tab-venc').hidden = !nb; $('#tab-venc').textContent = nb;
 }
 $('#v-q').oninput = renderVenc;
@@ -934,6 +1020,8 @@ $('#v-need').addEventListener('click',e=>{ const b=e.target.closest('[data-reemp
   equipos=[{serie:'',idEq:'',persona:b.dataset.reemp,base:b.dataset.rb,cero:'0',resultado:'PASÓ',obs:''}]; renderEq(); showView('nueva');
   $('#t-eq input[data-k="serie"]').focus(); toast(`Cargá el N° de serie del equipo nuevo para ${b.dataset.reemp}`); });
 $('#v-base').onchange = renderVenc;
+$('#v-pend').onclick = ()=>{ const p = pendLabels().sort((a,b)=>((curAsig(a.serie)||{}).base||'').localeCompare((curAsig(b.serie)||{}).base||'')||a.serie.localeCompare(b.serie));
+  if(!p.length) return toast('No hay etiquetas pendientes'); if(db.cfg.lblMedia==='rollo') return printDocs(p,'lbl'); openLabelQueue(p, `Etiquetas pendientes: ${p.length}`); };
 $('#v-bajas').onchange = renderVenc;
 $('#a-dest').onchange=e=>{ db.cfg.avisos.dest=e.target.value.trim(); saveCfg(); renderVenc(); toast('Destinatarios guardados'); };
 $('#a-dias').onchange=e=>{ const n=Math.max(1,Math.min(60,+e.target.value||5)); db.cfg.avisos.dias=n; saveCfg(); refresh(); toast(`Aviso ${n} días antes`); };
@@ -1093,6 +1181,7 @@ $('#m-recal').onclick=recal;
    ========================================================= */
 function renderCfg(){
   const C=db.cfg, yr=new Date().getFullYear();
+  $('#c-media').value=C.lblMedia; $('#c-gap').value=String(C.lblGap); capTxt();
   $('#c-cert').value=C.certSize; $('#c-lbl').value=C.lblSize; $('#c-qr').checked=!!C.lblQR; $('#c-emp').value=C.empresa; $('#c-sec').value=C.sector; $('#c-pre').value=C.prefijo;
   $('#c-max').value=maxCal(); $('#c-url').value=C.baseUrl; $('#c-url').placeholder=baseUrl();
   $('#c-seq').value=(db.seq[yr]||0)+1;
@@ -1102,8 +1191,11 @@ function renderCfg(){
     <td>${C.tecnicos.length>1?`<button class="btn sm ghost danger" data-td="${i}">✕</button>`:''}</td></tr>`).join('');
 }
 $('#c-cert').onchange=e=>{db.cfg.certSize=e.target.value;saveCfg();};
-$('#c-lbl').onchange=e=>{db.cfg.lblSize=e.target.value;saveCfg();};
+$('#c-lbl').onchange=e=>{db.cfg.lblSize=e.target.value;db.cfg.lblNext=1;saveCfg();capTxt();};
 $('#c-qr').onchange=e=>{db.cfg.lblQR=e.target.checked;saveCfg();};
+$('#c-media').onchange=e=>{db.cfg.lblMedia=e.target.value;saveCfg();capTxt();};
+$('#c-gap').onchange=e=>{db.cfg.lblGap=+e.target.value;db.cfg.lblNext=1;saveCfg();capTxt();};
+function capTxt(){ const G=sheetGrid(); $('#c-cap').textContent = db.cfg.lblMedia==='rollo' ? 'Una etiqueta por página (impresora de rollo).' : `Hoja A4: ${G.cols} × ${G.rows} = ${G.cap} etiquetas por hoja.`; }
 $('#c-max').onchange=e=>{ const n=Math.max(1,Math.min(20,+e.target.value||4)); db.cfg.maxCal=n; saveCfg(); refresh(); renderEq(); toast(`Máximo ${n} calibraciones por equipo`); };
 $('#c-url').onchange=e=>{db.cfg.baseUrl=e.target.value.trim();saveCfg();toast('URL del QR actualizada');};
 $('#c-emp').onchange=e=>{db.cfg.empresa=e.target.value.trim();saveCfg();};
@@ -1200,7 +1292,7 @@ function kpis(){
 function refresh(){ kpis(); renderReg(); renderVenc(); fillDatalists(); }
 function showView(v){ $$('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===v)); $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v)); if(v==='config') renderCfg(); if(v==='registro') renderReg(); if(v==='venc') renderVenc(); }
 $$('.tab').forEach(t=>t.onclick=()=>showView(t.dataset.v));
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $('#modal').classList.remove('on'); $('#imp-modal').classList.remove('on'); } });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $$('.modal').forEach(m=>m.classList.remove('on')); } });
 
 (async function init(){
   loadLocal();
