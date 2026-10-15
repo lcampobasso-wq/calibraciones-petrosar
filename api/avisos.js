@@ -49,6 +49,7 @@ module.exports = async (req, res) => {
 
     if (!due.length && !rep.length) return res.json({ hoy, dias, enviados: 0 });
     if (!dest.length) return res.status(400).json({ error: 'No hay destinatarios configurados', pendientes: due.length + rep.length });
+    const destComp = (av.destRep || env('AVISO_COMPRAS')).split(/[,;\s]+/).filter(x => x.includes('@'));
 
     const base = (cfg.baseUrl || env('APP_URL') || `https://${req.headers.host}/`).replace(/\/?$/, '/');
     const td = 'padding:6px 8px;border-bottom:1px solid #e2e8f0';
@@ -98,12 +99,42 @@ module.exports = async (req, res) => {
     const list = a => a.map(r => (quien[r.serie.toUpperCase()] || {}).persona || r.serie).slice(0, 4).join(', ') + (a.length > 4 ? '…' : '');
     const subject = 'Calibración: ' + [n ? `${n} equipo${n > 1 ? 's' : ''} por vencer (${list(due)})` : '', rep.length ? `${rep.length} a reponer (${list(rep)})` : ''].filter(Boolean).join(' · ');
 
-    if (req.query && req.query.dry === '1') return res.json({ hoy, dias, maxCal, dest, subject,
+    // --- Mail a Compras: pedido de reposición (solo si hay equipos en su última calibración) ---
+    let compras = null;
+    if (rep.length && destComp.length) {
+      const grupos = {};
+      rep.forEach(r => { const k = `${(r.data && r.data.marca) || ''} ${r.modelo || ''} ${((r.data && r.data.sensores) || []).map(s => s.sensor.split(' ')[0]).join('/')}`.replace(/\s+/g, ' ').trim(); grupos[k] = (grupos[k] || 0) + 1; });
+      const limite = rep[0].proxima;
+      const filasC = rep.map(r => `<tr><td style="${td}">${per(r)}</td><td style="${td}"><b>${bas(r)}</b></td>
+        <td style="${td};font-family:Consolas,monospace">${esc(r.serie)}</td><td style="${td}">${esc((r.data && r.data.marca) || '')} ${esc(r.modelo || '')}</td>
+        <td style="${td}"><b>${fmt(r.proxima)}</b></td></tr>`).join('');
+      compras = {
+        subject: `Pedido de reposición: ${rep.length} detector${rep.length > 1 ? 'es' : ''} de gas — antes del ${fmt(limite)}`,
+        html: `<div style="font-family:Segoe UI,Arial,sans-serif;color:#1a202c;max-width:720px">
+          <div style="background:#1e2d3e;color:#fff;padding:14px 18px;border-radius:8px 8px 0 0">
+            <div style="font-size:17px;font-weight:700">Pedido de reposición de detectores de gas</div>
+            <div style="font-size:12px;opacity:.75">${esc(cfg.empresa || 'PETROSAR S.A.')} · ${esc(cfg.sector || 'Servicio Técnico')}</div></div>
+          <div style="border:1px solid #e2e8f0;border-top:0;padding:14px 18px;border-radius:0 0 8px 8px">
+            <p style="margin:0 0 10px">Los siguientes detectores recibieron su <b>última calibración permitida (${maxCal}/${maxCal})</b>. Son descartables y deben reemplazarse antes de su vencimiento.</p>
+            <div style="background:#fff7e6;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-bottom:12px">
+              <div style="font-weight:700;margin-bottom:4px">Cantidad a reponer</div>
+              ${Object.entries(grupos).map(([k, n]) => `<div>• <b>${n}</b> × ${esc(k)}</div>`).join('')}
+              <div style="margin-top:6px">Primer vencimiento: <b>${fmt(limite)}</b></div></div>
+            <table style="border-collapse:collapse;width:100%;font-size:13px">
+              <thead><tr style="background:#f0f2f6;text-align:left;font-size:11px;text-transform:uppercase;color:#4a5568">
+                <th style="${th}">Usuario</th><th style="${th}">Base</th><th style="${th}">N° de serie</th><th style="${th}">Equipo</th><th style="${th}">Fuera de servicio</th></tr></thead>
+              <tbody>${filasC}</tbody></table>
+            <p style="font-size:11px;color:#718096;margin-top:16px">Aviso automático del sistema de calibración. Consultas: ${esc(dest.join(', '))}.</p>
+          </div></div>` };
+    }
+
+    if (req.query && req.query.dry === '1') return res.json({ hoy, dias, maxCal, dest, subject, compras: compras ? { to: destComp, subject: compras.subject } : null,
       vencimientos: due.map(r => ({ serie: r.serie, proxima: r.proxima })), reposicion: rep.map(r => ({ serie: r.serie, ciclo: ciclo(r) })) });
 
     const port = Number(env('SMTP_PORT')) || 587;
     const tx = nodemailer.createTransport({ host: env('SMTP_HOST'), port, secure: port === 465, auth: { user: env('SMTP_USER'), pass: env('SMTP_PASS') } });
     await tx.sendMail({ from: env('SMTP_FROM') || env('SMTP_USER'), to: dest.join(', '), subject, html });
+    if (compras) await tx.sendMail({ from: env('SMTP_FROM') || env('SMTP_USER'), to: destComp.join(', '), replyTo: dest.join(', '), subject: compras.subject, html: compras.html });
 
     const mark = async (arr, field) => {
       if (!arr.length) return;
@@ -115,7 +146,7 @@ module.exports = async (req, res) => {
     await mark(due, 'aviso_enviado');
     await mark(rep, 'aviso_reposicion');
 
-    return res.json({ hoy, dias, enviados: n, reposicion: rep.length, dest });
+    return res.json({ hoy, dias, enviados: n, reposicion: rep.length, dest, compras: compras ? destComp : [] });
   } catch (e) {
     return res.status(500).json({ error: String((e && e.message) || e) });
   }
