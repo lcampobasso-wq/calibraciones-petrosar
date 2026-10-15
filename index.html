@@ -376,7 +376,10 @@ tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
   <div class="card">
     <h3>Avisos por mail <span class="sp"></span><span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">Control diario 08:00 · vencimientos y reposición de equipos</span></h3>
     <div class="av-grid">
-      <label class="f"><span>Destinatarios (separados por coma)</span><textarea class="in" id="a-dest" rows="2" placeholder="pmorales@petrosar.com"></textarea></label>
+      <div class="g" style="grid-template-columns:1fr;gap:6px">
+        <label class="f"><span>Destinatarios · vencimientos y reposición</span><textarea class="in" id="a-dest" rows="1" placeholder="pmorales@petrosar.com"></textarea></label>
+        <label class="f"><span>Compras · pedido de reposición (opcional)</span><textarea class="in" id="a-comp" rows="1" placeholder="compras@petrosar.com"></textarea></label>
+      </div>
       <label class="f"><span>Anticipación (días)</span><input class="in num" type="number" min="1" max="60" id="a-dias"></label>
       <div class="f" style="min-width:0"><span style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)">Próximo mail</span><div id="a-next" class="hint"></div></div>
     </div>
@@ -988,7 +991,7 @@ function renderVenc(){
   $('#v-need').innerHTML = se.length ? `<div class="alert need" style="margin:0 0 10px"><span style="font-size:16px">👤</span><div><b class="t">${se.length} persona${se.length>1?'s':''} sin detector (equipo dado de baja)</b>
     ${se.map(a=>`<span style="white-space:nowrap">${esc(a.persona)}${a.base?' · '+esc(a.base):''} <button class="btn sm" data-reemp="${esc(a.persona)}" data-rb="${esc(a.base||'')}">Asignar equipo nuevo</button></span>`).join(' ')}</div></div>` : '';
   // panel avisos
-  $('#a-dest').value = db.cfg.avisos.dest; $('#a-dias').value = A;
+  $('#a-dest').value = db.cfg.avisos.dest; $('#a-comp').value = db.cfg.avisos.destRep||''; $('#a-dias').value = A;
   $('#a-conn').className = 'conn '+(REMOTE?'on':'off');
   $('#a-conn').innerHTML = REMOTE
     ? '<span>●</span><span>Conectado a la base de datos. El envío diario de mails queda activo con la app publicada en Vercel.</span>'
@@ -1000,7 +1003,7 @@ function renderVenc(){
     ? `<div style="margin-bottom:6px"><b>${pend.length} equipo${pend.length>1?'s':''}</b> en el próximo aviso${dest.length?` → ${esc(dest.join(', '))}`:' · <span style="color:var(--bad)">falta cargar destinatarios</span>'}</div>`
       + pend.slice(0,8).map(c=>{ const a=curAsig(c.serie); return `<div>• <span class="mono">${esc(c.serie)}</span>${a&&a.persona?' ('+esc(a.persona)+')':''} — vence ${fmt(c.proxima)}${isLast(c)?' · <b style="color:var(--bad)">descartar</b>':''}</div>`; }).join('') + (pend.length>8?`<div>… y ${pend.length-8} más</div>`:'')
     : 'Sin vencimientos pendientes de aviso.';
-  if(pendRep.length) $('#a-next').innerHTML += `<div style="margin-top:8px;color:#6b21a8"><b>Reposición:</b> ${pendRep.length} equipo${pendRep.length>1?'s':''} en su última calibración — ${pendRep.slice(0,6).map(c=>{ const a=curAsig(c.serie); return esc(a&&a.persona||c.serie); }).join(', ')}${pendRep.length>6?'…':''}</div>`;
+  if(pendRep.length) $('#a-next').innerHTML += `<div style="margin-top:8px;color:#6b21a8"><b>Reposición${db.cfg.avisos.destRep?' (también a Compras: '+esc(db.cfg.avisos.destRep)+')':''}:</b> ${pendRep.length} equipo${pendRep.length>1?'s':''} en su última calibración — ${pendRep.slice(0,6).map(c=>{ const a=curAsig(c.serie); return esc(a&&a.persona||c.serie); }).join(', ')}${pendRep.length>6?'…':''}</div>`;
   const pn = pendLabels().length; $('#v-pend-n').textContent = pn; $('#v-pend').classList.toggle('acc', pn>0);
   const nb = all.filter(d=>d<=A).length + act.filter(c=>isLast(c)&&daysTo(c.proxima)>A).length; $('#tab-venc').hidden = !nb; $('#tab-venc').textContent = nb;
 }
@@ -1023,6 +1026,7 @@ $('#v-base').onchange = renderVenc;
 $('#v-pend').onclick = ()=>{ const p = pendLabels().sort((a,b)=>((curAsig(a.serie)||{}).base||'').localeCompare((curAsig(b.serie)||{}).base||'')||a.serie.localeCompare(b.serie));
   if(!p.length) return toast('No hay etiquetas pendientes'); if(db.cfg.lblMedia==='rollo') return printDocs(p,'lbl'); openLabelQueue(p, `Etiquetas pendientes: ${p.length}`); };
 $('#v-bajas').onchange = renderVenc;
+$('#a-comp').onchange=e=>{ db.cfg.avisos.destRep=e.target.value.trim(); saveCfg(); renderVenc(); toast(db.cfg.avisos.destRep?'Destinatario de Compras guardado':'Aviso a Compras desactivado'); };
 $('#a-dest').onchange=e=>{ db.cfg.avisos.dest=e.target.value.trim(); saveCfg(); renderVenc(); toast('Destinatarios guardados'); };
 $('#a-dias').onchange=e=>{ const n=Math.max(1,Math.min(60,+e.target.value||5)); db.cfg.avisos.dias=n; saveCfg(); refresh(); toast(`Aviso ${n} días antes`); };
 
