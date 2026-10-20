@@ -461,8 +461,10 @@ tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
     <button class="btn sm pri" id="m-cert">Imprimir certificado</button>
     <button class="btn sm pri" id="m-lbl">Imprimir etiqueta</button>
     <button class="btn sm" id="m-pdf">PDF</button>
+    <button class="btn sm acc" id="m-edit" hidden>Editar</button>
     <button class="btn sm" id="m-recal">Recalibrar</button>
     <button class="btn sm ghost" id="m-close">✕</button></div>
+  <div class="card" id="m-editbox" hidden style="margin:0 0 10px;border:2px solid var(--amber)"></div>
   <div class="card" id="m-asg" style="margin:0 0 10px;background:#fafbfc"></div>
   <div class="prev-wrap" id="m-prev"></div>
 </div></div>
@@ -518,6 +520,7 @@ tr.warn td{background:#fff7e6} tr.skip td{opacity:.45}
 const SUPA_URL = 'https://atnnhefwyfjhwcudtlbe.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF0bm5oZWZ3eWZqaHdjdWR0bGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1OTg5NDIsImV4cCI6MjA4NTE3NDk0Mn0.yGvsttKLujVlpINgPUuGlZe5EQ3int4NMy7BI47UqJE';
 const REMOTE = !!(SUPA_URL && SUPA_KEY);
+const PERMITIR_EDITAR = true;   // botón «Editar» en certificados emitidos (poner false para quitarlo)
 
 const LOGO = document.querySelector('.hd-top img').src;
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
@@ -1151,7 +1154,32 @@ $('#r-lbl').onclick=()=>printDocs(selCerts(),'lbl');
 $('#r-pdf').onclick=()=>pdfZip(selCerts());
 
 let mc=null;
-function openModal(id){ mc=db.certs.find(c=>c.id===id); $('#m-title').textContent=`${mc.importado?'Equipo importado':mc.nro} · S/N ${mc.serie}`; $('#modal').classList.add('on');
+/* ---- edición de certificado emitido (completar datos faltantes, ej. N° de cilindro) ---- */
+const loteDe = c => db.certs.filter(x=>!x.importado && x.id.split('-')[0]===c.id.split('-')[0]);
+function openEdit(){
+  const lote = loteDe(mc), F=[['cil','Cilindro N°'],['conc','Concentración'],['prov','Proveedor'],['tol','Tolerancia']];
+  $('#m-editbox').hidden=false;
+  $('#m-editbox').innerHTML = `<h3>Editar certificado ${esc(mc.nro)}</h3>
+    <div class="tw"><table class="t"><thead><tr><th>Sensor</th>${F.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody>
+      ${mc.sensores.map((s,i)=>`<tr><td>${sub(s.sensor)}</td>${F.map(([k])=>`<td><input class="in" data-ei="${i}" data-k="${k}" value="${esc(s[k]||'')}"></td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <label class="f" style="margin-top:8px"><span>Observaciones</span><input class="in" id="me-obs" value="${esc(mc.obs||'')}"></label>
+    <div class="bar" style="margin-top:10px">
+      ${lote.length>1?`<label class="hint" style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="me-lote" checked> Aplicar gas patrón a los <b>${lote.length}</b> certificados del mismo lote (${esc(lote[0].nro)} → ${esc(lote[lote.length-1].nro)})</label>`:''}
+      <span class="sp"></span><button class="btn sm" id="me-cancel">Cancelar</button><button class="btn sm pri" id="me-save">Guardar cambios</button></div>`;
+  $('#me-cancel').onclick = ()=>{ $('#m-editbox').hidden=true; };
+  $('#me-save').onclick = async ()=>{
+    const vals = mc.sensores.map((_,i)=>Object.fromEntries(F.map(([k])=>[k, $(`#m-editbox input[data-ei="${i}"][data-k="${k}"]`).value.trim()])));
+    const targets = ($('#me-lote') && $('#me-lote').checked) ? lote : [mc];
+    targets.forEach(c=>{ c.sensores.forEach((s,i)=>{ const v=vals[i]; if(v && s.sensor===mc.sensores[i].sensor) Object.assign(s,v); }); c.editado=today(); });
+    mc.obs = $('#me-obs').value.trim();
+    try{ await saveCerts(targets); toast(`${targets.length} certificado${targets.length>1?'s':''} actualizado${targets.length>1?'s':''}`); }catch(_){ toast('No se pudo guardar en la nube'); }
+    $('#m-editbox').hidden=true; previewInto($('#m-prev'),mc); refresh();
+  };
+}
+$('#m-edit').onclick = openEdit;
+
+function openModal(id){ mc=db.certs.find(c=>c.id===id); $('#m-editbox').hidden=true; $('#m-edit').hidden = !PERMITIR_EDITAR || !!mc.importado; $('#m-title').textContent=`${mc.importado?'Equipo importado':mc.nro} · S/N ${mc.serie}`; $('#modal').classList.add('on');
   $('#m-cert').disabled = $('#m-pdf').disabled = !!mc.importado; renderAsgBox(); previewInto($('#m-prev'),mc); }
 function renderAsgBox(){
   const cur=curAsig(mc.serie), h=histAsig(mc.serie).slice().reverse();
